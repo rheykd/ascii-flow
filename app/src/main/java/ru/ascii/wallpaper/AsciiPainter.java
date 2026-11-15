@@ -38,7 +38,7 @@ final class AsciiPainter {
         if (previousMode != settings.mode()) { ripples.clear(); media.pause(); time=0; previousMode = settings.mode(); }
         settings.effects(scene.options); scene.symbols(settings.symbols());
         scene.render(settings.mode(), time, grid.cellW / grid.cellH, settings.wireframe(), settings.objectScale() / 100.0);
-        if (settings.mode() >= 7 && width > 0 && height > 0) {
+        if (settings.mode() >= 7 && settings.mode() <= 8 && width > 0 && height > 0) {
             int revision=settings.prefs.getInt("media_revision",0);
             String identity=settings.mediaUri()+":"+revision;
             if(!lastMedia.equals(identity)){lastMedia=identity;time=0;}

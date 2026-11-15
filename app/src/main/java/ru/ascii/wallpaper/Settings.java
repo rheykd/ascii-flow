@@ -20,6 +20,7 @@ final class Settings {
     boolean blackHoleWaves() { return prefs.getBoolean("blackhole_waves", true); }
     boolean ripplesActive() { return mode() == 9 ? blackHoleWaves() : mode() == 6 || touchEnabled(); }
     boolean lockClock() { return prefs.getBoolean("lock_clock",false); }
+    int lockClockY() { return bounded("lock_clock_y", 50, 0, 100); }
     String mediaUri() { return prefs.getString(mode() == 8 ? "video_uri" : "photo_uri", ""); }
     void effects(EffectOptions o) {
         o.rotationX = bounded("rotation_x",100,0,200); o.rotationY = bounded("rotation_y",100,0,200);

@@ -1,4 +1,4 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="ru.ascii.wallpaper" android:versionCode="7" android:versionName="1.5">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="ru.ascii.wallpaper" android:versionCode="9" android:versionName="1.6">
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="37" />
     <uses-feature android:name="android.software.live_wallpaper" android:required="true" />
     <application android:label="ASCII Flow" android:icon="@drawable/ic_launcher" android:theme="@style/AppTheme" android:allowBackup="false" android:supportsRtl="true">

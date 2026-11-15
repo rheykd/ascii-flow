@@ -19,7 +19,7 @@ final class LockClockRenderer {
     private int[] pixels;
     private char[] chars;
     private String lastTime="";
-    private int oldWidth,oldHeight,oldColumns,oldSpacing;
+    private int oldWidth,oldHeight,oldColumns,oldSpacing,oldPosition;
     LockClockRenderer(Context context) {
         glyphs=new GlyphRenderer(context);
         maskPaint.setColor(Color.WHITE);
@@ -30,15 +30,16 @@ final class LockClockRenderer {
         if(width<=0||height<=0)return;
         grid.configure(width,height,Math.max(64,settings.columns()),settings.rowSpacing());
         String time=LockClockPolicy.time(System.currentTimeMillis(),java.util.TimeZone.getDefault());
-        if(mask==null||width!=oldWidth||height!=oldHeight||grid.cols!=oldColumns||settings.rowSpacing()!=oldSpacing||!time.equals(lastTime)) {
+        if(mask==null||width!=oldWidth||height!=oldHeight||grid.cols!=oldColumns||settings.rowSpacing()!=oldSpacing||settings.lockClockY()!=oldPosition||!time.equals(lastTime)) {
             if(mask!=null)mask.recycle();
             mask=Bitmap.createBitmap(grid.cols,grid.rows,Bitmap.Config.ARGB_8888);
             pixels=new int[grid.cols*grid.rows];chars=new char[pixels.length];
             Canvas target=new Canvas(mask);
-            // Reference proportions: clock occupies 88% of width, from 18% to 72% of height.
+            // Reference proportions: clock occupies 88% of width and 54% of height; vertical center from settings.
             float digitW=width*.16f;
             float[] positions={.06f,.255f,.585f,.78f};
-            float top=(height*.18f-grid.top)/grid.cellH, bottom=(height*.72f-grid.top)/grid.cellH;
+            float center=LockClockPolicy.center(settings.lockClockY());
+            float top=(height*(center-.27f)-grid.top)/grid.cellH, bottom=(height*(center+.27f)-grid.top)/grid.cellH;
             for(int i=0;i<4;i++) {
                 path.reset();TallDigits.draw(time.charAt(i)-'0',digitW,height*.54f,pen);
                 maskPaint.setStyle(Paint.Style.STROKE);maskPaint.setStrokeWidth(TallDigits.weight(digitW));
@@ -46,12 +47,12 @@ final class LockClockRenderer {
                 target.scale(1/grid.cellW,1/grid.cellH);target.drawPath(path,maskPaint);target.restore();
             }
             maskPaint.setStyle(Paint.Style.FILL);
-            float center=grid.cols*.5f, rx=grid.cols*.018f, ry=rx*grid.cellW/grid.cellH;
+            float cx=grid.cols*.5f, rx=grid.cols*.018f, ry=rx*grid.cellW/grid.cellH;
             float cy1=top+(bottom-top)*.27f, cy2=top+(bottom-top)*.73f;
-            target.drawOval(center-rx,cy1-ry,center+rx,cy1+ry,maskPaint);
-            target.drawOval(center-rx,cy2-ry,center+rx,cy2+ry,maskPaint);
+            target.drawOval(cx-rx,cy1-ry,cx+rx,cy1+ry,maskPaint);
+            target.drawOval(cx-rx,cy2-ry,cx+rx,cy2+ry,maskPaint);
             mask.getPixels(pixels,0,grid.cols,0,0,grid.cols,grid.rows);
-            oldWidth=width;oldHeight=height;oldColumns=grid.cols;oldSpacing=settings.rowSpacing();lastTime=time;
+            oldWidth=width;oldHeight=height;oldColumns=grid.cols;oldSpacing=settings.rowSpacing();oldPosition=settings.lockClockY();lastTime=time;
         }
         String alphabet=settings.symbols().isEmpty()?"#%@@":settings.symbols();
         glyphs.configure(settings.font(),Color.WHITE,grid.cellW*Math.min(110,settings.glyphScale())/100f);

@@ -82,7 +82,7 @@ public final class MainActivity extends Activity {
         LinearLayout content = column(); content.setPadding(dp(22), dp(24), dp(22), dp(20));
         scroll.addView(content);
 
-        TextView eyebrow = text("[ СИСТЕМА АКТИВНА ]     v1.5", 10, ACCENT);
+        TextView eyebrow = text("[ СИСТЕМА АКТИВНА ]     v1.6", 10, ACCENT);
         eyebrow.setLetterSpacing(.1f); content.addView(eyebrow);
         TextView title = text("ASCII_FLOW▌", 30, ACCENT);
         title.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
@@ -112,6 +112,8 @@ public final class MainActivity extends Activity {
         content.addView(expand, margins(-1, dp(48), 0, 0, 0, 12));
         section(content,"00","ЧАСЫ НА БЛОКИРОВКЕ");
         toggle(content,"ASCII-часы на экране блокировки","lock_clock",false);
+        slider(content,"Положение часов по вертикали","lock_clock_y",0,100,settings.lockClockY());
+        content.addView(text("0 — выше, 100 — ниже. По умолчанию часы на прежнем месте.\nПолзунок есть и в предпросмотре часов.",11,MUTED),margins(-1,-2,0,0,0,12));
         content.addView(text("По умолчанию выключены. Только часы и минуты,\nбез даты и погоды. На рабочем столе остаётся выбранный эффект.\nУстановите ASCII Flow также на экран блокировки.\nШтатные часы Samsung скрываются отдельно в настройках Good Lock, если прошивка это позволяет.",11,MUTED),margins(-1,-2,0,0,0,12));
         action(content,"[ Предпросмотр ASCII-часов ]",() -> openPreview(true));
         section(content, "01", "РЕЖИМ ДВИЖЕНИЯ");
@@ -281,7 +283,7 @@ public final class MainActivity extends Activity {
         showControl("stars_animation",selected==11);
         showControl("rain_length",selected==5); showControl("rain_spacing",selected==5);
         showControl("ripple_speed",settings.ripplesActive()); showControl("ripple_life",settings.ripplesActive());
-        mediaOptions.setVisibility(selected>=7?View.VISIBLE:View.GONE);
+        mediaOptions.setVisibility(selected==7||selected==8?View.VISIBLE:View.GONE);
         mediaLabel.setText(settings.mediaUri().isEmpty()?"Файл ещё не выбран":"Файл выбран. Можно заменить его ниже.");
         symbolsLabel.setText(settings.symbols().isEmpty()?"Символы: стандартные для эффекта":"Символы: "+settings.symbols());
         for (int i = 0; i < cubeButtons.length; i++) selection(cubeButtons[i], i == (settings.wireframe() ? 1 : 0));
@@ -429,9 +431,18 @@ public final class MainActivity extends Activity {
         FrameLayout.LayoutParams closeParams = new FrameLayout.LayoutParams(dp(160), dp(52), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
         closeParams.bottomMargin = dp(36); root.addView(close, closeParams);
         close.setOnClickListener(v -> dialog.dismiss());
+        if (clockPreview) {
+            LinearLayout panel = column(); panel.setBackgroundColor(0xe606150b);
+            panel.setPadding(dp(14), dp(6), dp(14), dp(6));
+            panel.addView(new Control("Положение часов", "lock_clock_y", 0, 100, settings.lockClockY()));
+            FrameLayout.LayoutParams panelParams = new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+            panelParams.bottomMargin = dp(100); root.addView(panel, panelParams);
+        }
         dialog.setContentView(root);
         dialog.setOnDismissListener(v -> {
             full.stop(); fullPreview = null; fullDialog = null;
+            Control section = controls.get("lock_clock_y");
+            if (section != null) section.setValue(settings.lockClockY());
             if (!isFinishing() && !isDestroyed()) preview.start();
         });
         dialog.show();
@@ -518,6 +529,7 @@ public final class MainActivity extends Activity {
                     int n = progress + min;
                     settings.set(key, n); number.setText(value(key, n)); updateGridReadout();
                     preview.invalidate();
+                    if (fullPreview != null) fullPreview.invalidate();
                 }
                 public void onStartTrackingTouch(SeekBar bar) { }
                 public void onStopTrackingTouch(SeekBar bar) { }
