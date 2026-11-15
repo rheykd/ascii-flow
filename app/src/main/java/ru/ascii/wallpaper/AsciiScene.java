@@ -4,7 +4,9 @@ import java.util.Arrays;
 
 /** Platform independent, allocation-free frame rendering after resize. */
 public final class AsciiScene {
-    public static final String[] NAMES = {"Куб", "Волны", "Тор", "Сфера", "Галактика", "Дождь", "Касание", "Фото", "Видео", "Чёрная дыра", "Пульсар", "Звёзды"};
+    public static final String[] NAMES = {"Куб", "Волны", "Тор", "Сфера", "Галактика", "Дождь", "Касание", "Фото", "Видео", "Чёрная дыра", "Пульсар", "Звёзды", "Гроза", "Дерево", "Сакура", "Огонь", "Ландшафт"};
+    public static final int[] NATURE_COLORS = {0, 0xff98c6ff, 0xffffeac3, 0xffbd875c, 0xff85df70, 0xffffa6cd, 0xffff6b31, 0xff8da4bd};
+    public byte[] tones = new byte[0];
     public final EffectOptions options = new EffectOptions();
     private String custom = "";
     private char[] ramp = RAMP;
@@ -13,6 +15,7 @@ public final class AsciiScene {
         custom = value; ramp = value.isEmpty() ? RAMP : value.toCharArray();
     }
     public void pixel(int i, float intensity) {
+        tones[i] = 0;
         light[i] = Math.max(0, Math.min(1, intensity));
         glyphs[i] = light[i] < .035f ? ' ' : ramp[(int)(light[i] * (ramp.length - 1))];
     }
@@ -30,6 +33,7 @@ public final class AsciiScene {
         if (this.cols == cols && this.rows == rows) return;
         this.cols = cols; this.rows = rows;
         glyphs = new char[cols * rows]; light = new float[glyphs.length]; depth = new float[glyphs.length];
+        tones = new byte[glyphs.length];
     }
 
     public void render(int mode, double t, double cellAspect) {
@@ -38,6 +42,7 @@ public final class AsciiScene {
 
     public void render(int mode, double t, double cellAspect, boolean wireframe, double objectScale) {
         Arrays.fill(glyphs, ' '); Arrays.fill(light, 0); Arrays.fill(depth, -Float.MAX_VALUE);
+        Arrays.fill(tones, (byte)0);
         aspect = cellAspect;
         scale = Math.min(cols, rows / aspect) * .32 * objectScale;
         double a = t * .16 * options.rotationX / 100.0 + .42, b = t * .11 * options.rotationY / 100.0 + .62;
@@ -52,7 +57,131 @@ public final class AsciiScene {
             case 9: blackHole(t); break;
             case 10: pulsar(t); break;
             case 11: stars(t); break;
+            case 12: storm(t); break;
+            case 13: tree(t, false); break;
+            case 14: tree(t, true); break;
+            case 15: fire(t); break;
+            case 16: landscape(t); break;
             default: if (wireframe) wireCube(); else cube();
+        }
+    }
+
+    private static double noise(int seed) {
+        seed ^= seed >>> 16;
+        seed *= 0x7feb352d;
+        seed ^= seed >>> 15;
+        seed *= 0x846ca68b;
+        return ((seed ^ (seed >>> 16)) & 0xffffff) / 16777216.0;
+    }
+
+    private void tint(int x, int y, double brightness, char glyph, int tone) {
+        if (x < 0 || x >= cols || y < 0 || y >= rows) return;
+        put(x, y, 0, brightness, glyph);
+        tones[y * cols + x] = (byte)tone;
+    }
+
+    private void stroke(double x, double y, double endX, double endY, double brightness, int tone) {
+        double dx = endX - x, dy = endY - y;
+        int steps = Math.max(1, (int)Math.ceil(Math.max(Math.abs(dx), Math.abs(dy))));
+        char glyph = Math.abs(dx) < Math.abs(dy) * .25 ? '|' : dx * dy < 0 ? '/' : (char)92;
+        for (int i = 0; i <= steps; i++) {
+            double progress = (double)i / steps;
+            tint((int)Math.round(x + dx * progress), (int)Math.round(y + dy * progress), brightness, glyph, tone);
+        }
+    }
+
+    private void storm(double t) {
+        for (int i = 0; i < Math.min(450, cols * rows / 18); i++) {
+            int x = (int)(noise(i * 7 + 1) * cols);
+            int y = (int)((noise(i * 7 + 2) + t * (.24 + noise(i * 7 + 3) * .4)) % 1 * rows);
+            tint(x, y, .2 + .32 * noise(i * 7 + 4), '/', 1);
+        }
+        double phase = t % 5;
+        if (phase > .24) return;
+        int seed = (int)(t / 5);
+        double x = cols * (.25 + .5 * noise(seed + 170)), y = rows * .03;
+        double flash = 1 - phase * 2.5;
+        for (int i = 0; i < 9; i++) {
+            double nextX = x + (noise(seed * 31 + i) - .5) * cols * .18;
+            double nextY = y + rows * .082;
+            stroke(x, y, nextX, nextY, flash, 1);
+            if (i == 2 || i == 5) {
+                double side = (i == 2 ? -1 : 1) * cols * .12;
+                stroke(x, y, x + side, y + rows * .09, flash * .65, 1);
+                stroke(x + side, y + rows * .09, x + side * 1.25, y + rows * .18, flash * .45, 1);
+            }
+            x = nextX;
+            y = nextY;
+        }
+    }
+
+    private void tree(double t, boolean sakura) {
+        double width = Math.min(cols * .76, rows / aspect * .72);
+        double height = Math.min(rows * .64, width * aspect * (sakura ? 1.05 : 1.35));
+        double center = (cols - 1) * .5, base = rows * .82;
+        double crown = base - height * .7;
+        double sway = Math.sin(t * .55) * width * .025;
+        int leafTone = sakura ? 5 : 4;
+        for (int i = 0; i < Math.max(2, (int)(width * .055)); i++) {
+            stroke(center + i - width * .033, base, center + sway * .3, crown, .75, 3);
+        }
+        for (int branch = 0; branch < 7; branch++) {
+            double offset = (branch - 3) / 3.0;
+            double x = center + width * offset * .39 + sway;
+            double y = crown - height * (.19 - Math.abs(offset) * (sakura ? .11 : .24));
+            double forkX = center + (x - center) * .56;
+            double forkY = crown + height * .08;
+            stroke(center, crown + height * .29, forkX, forkY, .73, 3);
+            stroke(forkX, forkY, x, y, .63, 3);
+            for (int i = 0; i < Math.max(20, (int)(width * height / 17)); i++) {
+                int seed = branch * 4099 + i * 5;
+                double radius = Math.sqrt(noise(seed + 1)), angle = noise(seed + 2) * Math.PI * 2;
+                tint((int)Math.round(x + Math.cos(angle) * radius * width * .16),
+                     (int)Math.round(y + Math.sin(angle) * radius * height * .13),
+                     .43 + noise(seed + 3) * .53, sakura ? '*' : '+', leafTone);
+            }
+        }
+        for (int i = 0; i < Math.max(10, cols / 3); i++) {
+            double fall = (noise(i * 13 + 41) + t * (.055 + noise(i * 13 + 42) * .065)) % 1;
+            double x = center + (noise(i * 13 + 43) - .5) * width * .88
+                    + width * .1 * Math.sin(fall * 5 + i) * fall;
+            tint((int)x, (int)(crown + fall * (base - crown + height * .14)),
+                    .47 + .45 * (1 - fall), sakura ? '.' : '~', leafTone);
+        }
+    }
+
+    private void fire(double t) {
+        for (int x = 0; x < cols; x++) {
+            double horizontal = x / (double)cols;
+            double flame = .36 + .11 * Math.sin(horizontal * 28 + t * 2.2)
+                    + .09 * Math.sin(horizontal * 51 - t * 1.4);
+            for (int y = rows - 1; y >= Math.max(0, rows * (1 - flame)); y--) {
+                double rise = (rows - 1 - y) / (rows * flame);
+                double plume = 1 - rise + .16 * Math.sin(horizontal * 54 + rise * 16 - t * 5);
+                if (plume > .16) tint(x, y, plume, (char)0, plume > .7 ? 2 : 6);
+            }
+        }
+    }
+
+    private void landscape(double t) {
+        for (int layer = 0; layer < 3; layer++) {
+            double distance = layer + 1;
+            for (int x = 0; x < cols; x++) {
+                double world = x * 9.0 / cols + t * (.09 + layer * .12);
+                double ridge = Math.sin(world + layer) * .095 + Math.sin(world * 2.3 + layer) * .045;
+                int summit = (int)(rows * (.43 + layer * .13 + ridge));
+                for (int y = summit; y < rows; y++) {
+                    double slope = (y - summit) / (double)rows;
+                    if (y == summit || noise(x * 171 + y * 41 + layer) > .42) {
+                        double shade = .63 - slope * .68 + .15 * Math.sin(world * 2 + slope * 25);
+                        tint(x, y, shade / (1 + (3 - distance) * .25), (char)0, layer == 2 ? 4 : 7);
+                    } else {
+                        int index = y * cols + x;
+                        glyphs[index] = ' ';
+                        light[index] = 0;
+                    }
+                }
+            }
         }
     }
 

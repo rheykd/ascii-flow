@@ -63,13 +63,17 @@ final class AsciiPainter {
         }
         if (settings.ripplesActive()) ripples.render(scene,realTime,grid.cellW/grid.cellH,
                 settings.parameter("ripple_speed",100,25,250)/100.0,settings.parameter("ripple_life",4,1,10));
-        glyphs.configure(settings.font(), settings.color(), grid.cellW * settings.glyphScale() / 100f);
         float alphaScale = 255 * settings.brightness() / 100f;
-        for (int y = 0; y < grid.rows; y++) for (int x = 0; x < grid.cols; x++) {
-            int i = y * grid.cols + x;
-            if (scene.glyphs[i] == ' ') continue;
-            glyphs.draw(canvas, scene.glyphs, i, grid.left + (x + .5f) * grid.cellW,
-                    grid.top + (y + .5f) * grid.cellH, (int)(scene.light[i] * alphaScale));
+        int paletteSize = settings.mode() >= 12 ? AsciiScene.NATURE_COLORS.length : 1;
+        float glyphWidth = grid.cellW * settings.glyphScale() / 100f;
+        for (int tone = 0; tone < paletteSize; tone++) {
+            glyphs.configure(settings.font(), tone == 0 ? settings.color() : AsciiScene.NATURE_COLORS[tone], glyphWidth);
+            for (int i = 0; i < scene.glyphs.length; i++) {
+                if (scene.glyphs[i] == ' ' || scene.tones[i] != tone) continue;
+                int x = i % grid.cols, y = i / grid.cols;
+                glyphs.draw(canvas, scene.glyphs, i, grid.left + (x + .5f) * grid.cellW,
+                        grid.top + (y + .5f) * grid.cellH, (int)(scene.light[i] * alphaScale));
+            }
         }
     }
 }

@@ -40,7 +40,7 @@ public final class NewModesTest {
         // Долгая работа без выхода за массивы.
         scene.resize(64, 110);
         for (int mode = 9; mode <= 11; mode++) for (double t = 0; t < 3600; t += 37.7) scene.render(mode, t, .515);
-        require(AsciiScene.NAMES.length == 12, "Twelve modes");
+        require(AsciiScene.NAMES.length >= 12, "Space modes remain available");
         System.out.println("PASS: black hole, pulsar, stars animation toggle, galaxy spin toggle.");
     }
 }

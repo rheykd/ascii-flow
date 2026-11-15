@@ -13,7 +13,7 @@ final class Settings {
         prefs = context.getSharedPreferences("ascii_flow", Context.MODE_PRIVATE);
         device = new DeviceProfile(context);
     }
-    int mode() { return bounded("mode", 0, 0, 11); }
+    int mode() { return bounded("mode", 0, 0, AsciiScene.NAMES.length - 1); }
     int parameter(String key, int fallback, int min, int max) { return bounded(key, fallback, min, max); }
     String symbols() { return prefs.getString("symbols", ""); }
     boolean touchEnabled() { return prefs.getBoolean("touch", true); }

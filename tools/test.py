@@ -8,7 +8,7 @@ SRC=ROOT/'app/src/main/java/ru/ascii/wallpaper'
 def run(args): subprocess.run([str(a) for a in args],cwd=ROOT,check=True)
 OUT.mkdir(parents=True,exist_ok=True)
 core=['AsciiScene','EffectOptions','RippleField','MediaTone','GridGeometry','LockClockPolicy','TallDigits']
-tests=['SceneTest','FlexibleSettingsTest','NewFeaturesTest','LockClockTest','TallDigitsTest','NewModesTest']
+tests=['SceneTest','FlexibleSettingsTest','NewFeaturesTest','LockClockTest','TallDigitsTest','NewModesTest','NatureModesTest']
 run([JAVA/'javac.exe','-encoding','UTF-8','-d',OUT]+[SRC/(n+'.java') for n in core]+[ROOT/'tests'/(n+'.java') for n in tests])
 for name in tests: run([JAVA/'java.exe','-Djava.awt.headless=true','-cp',OUT,name])
 jar=ROOT/'.toolchain/json-test.jar'

@@ -42,7 +42,9 @@ public final class MainActivity extends Activity {
         "Бесконечное движение замкнутой формы.", "Свет, меридианы и плавное дыхание.",
         "Спиральный танец звёздных символов.", "Знакомый цифровой дождь в новом цвете.",
         "Коснитесь чёрного фона: появятся ASCII-волны.", "Ваше фото, собранное из символов.", "Видео по кругу. Только символы, без звука.",
-        "Гравитация искривляет орбиты звёзд.", "Пульсирующий источник с волнами лучей.", "Мерцающие огни в тишине космоса."
+        "Гравитация искривляет орбиты звёзд.", "Пульсирующий источник с волнами лучей.", "Мерцающие огни в тишине космоса.",
+        "Дождь и ветвящиеся молнии.", "Зелёная крона и падающие листья.", "Розовые цветы и летящие лепестки.",
+        "Языки пламени поднимаются снизу.", "Горные хребты движутся на разных планах."
     };
     private Settings settings;
     private Preview preview;
@@ -82,7 +84,7 @@ public final class MainActivity extends Activity {
         LinearLayout content = column(); content.setPadding(dp(22), dp(24), dp(22), dp(20));
         scroll.addView(content);
 
-        TextView eyebrow = text("[ СИСТЕМА АКТИВНА ]     v1.6", 10, ACCENT);
+        TextView eyebrow = text("[ СИСТЕМА АКТИВНА ]     v1.7", 10, ACCENT);
         eyebrow.setLetterSpacing(.1f); content.addView(eyebrow);
         TextView title = text("ASCII_FLOW▌", 30, ACCENT);
         title.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
@@ -117,7 +119,7 @@ public final class MainActivity extends Activity {
         content.addView(text("По умолчанию выключены. Только часы и минуты,\nбез даты и погоды. На рабочем столе остаётся выбранный эффект.\nУстановите ASCII Flow также на экран блокировки.\nШтатные часы Samsung скрываются отдельно в настройках Good Lock, если прошивка это позволяет.",11,MUTED),margins(-1,-2,0,0,0,12));
         action(content,"[ Предпросмотр ASCII-часов ]",() -> openPreview(true));
         section(content, "01", "РЕЖИМ ДВИЖЕНИЯ");
-        String[] marks = {"[+]", "≈", "◎", "◉", "✦", "//", "(~)", "[i]", "[>]", "●", "*", "·"};
+        String[] marks = {"[+]", "≈", "◎", "◉", "✦", "//", "(~)", "[i]", "[>]", "●", "*", "·", "ϟ", "♣", "✿", "^", "∧"};
         for (int row = 0; row < (modes.length+1)/2; row++) {
             LinearLayout pair = new LinearLayout(this);
             for (int col = 0; col < 2; col++) {
