@@ -4,8 +4,8 @@ import java.util.Arrays;
 
 /** Platform independent, allocation-free frame rendering after resize. */
 public final class AsciiScene {
-    public static final String[] NAMES = {"Куб", "Волны", "Тор", "Сфера", "Галактика", "Дождь", "Касание", "Фото", "Видео", "Чёрная дыра", "Пульсар", "Звёзды", "Гроза", "Дерево", "Сакура", "Огонь", "Ландшафт"};
-    public static final int[] NATURE_COLORS = {0, 0xff98c6ff, 0xffffeac3, 0xffbd875c, 0xff85df70, 0xffffa6cd, 0xffff6b31, 0xff8da4bd};
+    public static final String[] NAMES = {"Куб", "Волны", "Тор", "Сфера", "Галактика", "Дождь", "Касание", "Фото", "Видео", "Чёрная дыра", "Пульсар", "Звёзды", "Гроза", "Дерево", "Сакура", "Огонь", "Ландшафт", "Город под дождём", "Северное сияние", "Осенняя ветка", "Зима"};
+    public static final int[] NATURE_COLORS = {0, 0xff98c6ff, 0xffffeac3, 0xffbd875c, 0xff85df70, 0xffffa6cd, 0xffff6b31, 0xff8da4bd, 0xff64f6c5, 0xffb493ff, 0xffe0efff, 0xffffb548, 0xff477e81};
     public byte[] tones = new byte[0];
     public final EffectOptions options = new EffectOptions();
     private String custom = "";
@@ -62,6 +62,10 @@ public final class AsciiScene {
             case 14: sakura(t); break;
             case 15: fire(t); break;
             case 16: landscape(t); break;
+            case 17: rainyCity(t); break;
+            case 18: aurora(t); break;
+            case 19: autumn(t); break;
+            case 20: winter(t); break;
             default: if (wireframe) wireCube(); else cube();
         }
     }
@@ -149,64 +153,244 @@ public final class AsciiScene {
         }
     }
 
-    // Каждая ветвь задаётся ломаной в координатах силуэта, от основания к верхушке.
+    // Диагональная ветка входит справа, а тонкие побеги расходятся в обе стороны.
     private static final double[][] SAKURA_BRANCHES = {
-        {.57,1, .53,.87, .46,.70, .45,.54, .53,.39, .64,.25, .71,.14},
-        {.46,.70, .36,.59, .26,.51, .14,.44, .07,.33},
-        {.36,.59, .30,.44, .23,.32, .15,.24},
-        {.45,.54, .40,.40, .36,.26, .42,.13},
-        {.36,.26, .28,.21, .30,.10},
-        {.53,.39, .57,.27, .53,.17, .55,.06},
-        {.46,.70, .62,.64, .76,.53, .87,.48, .94,.36},
-        {.76,.53, .81,.39, .86,.28},
-        {.53,.39, .69,.38, .76,.30, .78,.22}
-    };
-    // Плоские группы цветов разного размера оставляют видимыми развилки ветвей.
-    private static final double[][] SAKURA_BLOSSOMS = {
-        {.08,.33,.075,.055}, {.15,.24,.08,.062}, {.23,.33,.067,.047},
-        {.29,.11,.079,.065}, {.40,.15,.075,.064}, {.51,.08,.097,.06},
-        {.63,.18,.075,.059}, {.72,.13,.084,.052}, {.79,.23,.077,.054},
-        {.87,.28,.08,.058}, {.93,.36,.064,.053}, {.82,.40,.07,.05},
-        {.67,.37,.058,.046}, {.22,.48,.066,.045}
+        {1.08,.24, .91,.32, .80,.43, .67,.51, .55,.64, .40,.71, .25,.75, -.06,.87},
+        {.88,.34, .81,.25, .73,.17, .64,.13},
+        {.80,.43, .69,.39, .57,.34, .42,.36, .33,.31},
+        {.67,.51, .59,.55, .48,.52, .42,.57},
+        {.55,.64, .61,.70, .62,.78, .57,.87},
+        {.83,.40, .85,.51, .91,.60, .86,.69, .81,.75},
+        {.40,.71, .36,.64, .29,.62, .23,.66},
+        {.25,.75, .19,.80, .13,.90}
     };
 
+    // Центр цветка, диаметр и поворот. Несколько цветков образуют каждую гроздь.
+    private static final double[][] SAKURA_FLOWERS = {
+        {.65,.13,.075,.1}, {.75,.18,.092,.5}, {.82,.24,.063,.8},
+        {.36,.32,.084,.2}, {.43,.36,.104,.7}, {.50,.32,.123,.4},
+        {.56,.37,.112,.1}, {.62,.40,.085,.9}, {.70,.41,.065,.3},
+        {.43,.57,.081,.8}, {.49,.53,.102,.4},
+        {.90,.55,.095,.2}, {.92,.62,.078,.4}, {.84,.69,.104,.7}, {.81,.75,.067,.2},
+        {.59,.70,.100,.1}, {.62,.77,.126,.6}, {.57,.85,.093,.8},
+        {.28,.72,.087,.3}, {.35,.69,.107,.9}, {.32,.76,.097,.4},
+        {.03,.85,.114,.4}, {.10,.80,.111,.9}, {.16,.83,.081,.2}
+    };
+    private static final double[][] SAKURA_BUDS = {
+        {.62,.10}, {.77,.12}, {.91,.25}, {.33,.30}, {.37,.27}, {.65,.45},
+        {.39,.58}, {.51,.61}, {.93,.67}, {.86,.76}, {.63,.86},
+        {.53,.91}, {.26,.64}, {.21,.66}, {.18,.87}, {.12,.91}
+    };
+
+    private double sakuraSway(double x, double y, double t) {
+        return (1.04 - x) * (.023 * Math.sin(t * 1.15) + .008 * Math.sin(t * 1.7 + y * 3));
+    }
+
     private void sakura(double t) {
-        double width = Math.min(cols * .89, rows / aspect * 1.25);
-        double height = Math.min(rows * .66, width * aspect * .78);
-        double left = (cols - width) * .5, top = rows * .80 - height;
+        double width = Math.min(cols * .98, rows / aspect * .94);
+        double height = width * aspect * .94;
+        double left = (cols - width) * .5;
+        double top = rows * .43 - height * .5;
         for (int branch = 0; branch < SAKURA_BRANCHES.length; branch++) {
             double[] points = SAKURA_BRANCHES[branch];
             for (int i = 2; i < points.length; i += 2) {
-                double x = left + width * points[i - 2], y = top + height * points[i - 1];
-                double endX = left + width * points[i], endY = top + height * points[i + 1];
-                stroke(x, y, endX, endY, branch == 0 ? .88 : .64, 3);
-                if (branch == 0 && i <= 6) {
-                    int thickness = Math.max(1, (int)(width * (.056 - i * .006)));
+                double start = points[i - 2], end = points[i];
+                double y = top + height * (points[i - 1] + sakuraSway(start, points[i - 1], t));
+                double endY = top + height * (points[i + 1] + sakuraSway(end, points[i + 1], t));
+                double x = left + width * start, endX = left + width * end;
+                stroke(x, y, endX, endY, branch == 0 ? .82 : .55, 3);
+                if (branch == 0) {
+                    int thickness = Math.max(1, (int)(width * .047 * (1 - start + 1.0) * start));
                     for (int j = 1; j <= thickness; j++) {
-                        stroke(x + j, y, endX + j * (i == 6 ? 0 : .65), endY, .68, 3);
+                        stroke(x, y + j * aspect, endX, endY + j * aspect * .83, .62, 3);
                     }
                 }
             }
         }
-        for (int cluster = 0; cluster < SAKURA_BLOSSOMS.length; cluster++) {
-            double[] blossom = SAKURA_BLOSSOMS[cluster];
-            for (int i = 0; i < Math.max(9, (int)(width * height * .018)); i++) {
-                int seed = cluster * 4099 + i * 5;
-                double angle = noise(seed + 12) * Math.PI * 2;
-                double radius = Math.sqrt(noise(seed + 13)) * (.86 + .17 * Math.cos(angle * 5));
-                int x = (int)Math.round(left + width * (blossom[0] + Math.cos(angle) * radius * blossom[2]));
-                int y = (int)Math.round(top + height * (blossom[1] + Math.sin(angle) * radius * blossom[3]));
-                double glow = noise(seed + 14);
-                tint(x, y, .46 + glow * .5, glow > .58 ? '*' : 'o', 5);
+        for (double[] bud : SAKURA_BUDS) {
+            int x = (int)Math.round(left + width * bud[0]);
+            int y = (int)Math.round(top + height * (bud[1] + sakuraSway(bud[0], bud[1], t)));
+            tint(x, y, .76, 'o', 5);
+        }
+        for (int i = 0; i < SAKURA_FLOWERS.length; i++) {
+            double[] flower = SAKURA_FLOWERS[i];
+            double x = left + width * flower[0];
+            double y = top + height * (flower[1] + sakuraSway(flower[0], flower[1], t));
+            double radius = Math.max(1.35, width * flower[2] * .5);
+            double rotation = flower[3] + .14 * Math.sin(t * 1.65 + i * .68);
+            sakuraFlower(x, y, radius, rotation);
+        }
+        for (int i = 0; i < Math.max(14, cols / 3); i++) {
+            double[] source = SAKURA_FLOWERS[(i * 11) % SAKURA_FLOWERS.length];
+            double lifetime = 5.4 + noise(i * 31 + 8) * 4;
+            double fall = (noise(i * 31 + 7) + t / lifetime) % 1;
+            double drift = (.09 + .05 * noise(i * 31 + 9)) * fall + Math.sin(fall * 8 + i) * fall * .06;
+            double swayAtRelease = sakuraSway(source[0], source[1], t - fall * lifetime);
+            int x = (int)Math.round(left + width * (source[0] + drift));
+            int y = (int)Math.round(top + height * (source[1] + swayAtRelease) + fall * rows * .47);
+            double fade = Math.min(1, (1 - fall) * 5);
+            if (fade > .1) tint(x, y, (.79 - fall * .37) * fade, i % 3 == 0 ? ',' : '.', 5);
+        }
+    }
+
+    private void sakuraFlower(double x, double y, double radius, double rotation) {
+        for (int petal = 0; petal < 5; petal++) {
+            double angle = rotation + petal * Math.PI * .4;
+            double petalX = x + Math.cos(angle) * radius * .55;
+            double petalY = y + Math.sin(angle) * radius * .55 * aspect;
+            double outer = radius * .48;
+            for (int row = (int)Math.floor(petalY - outer * aspect); row <= Math.ceil(petalY + outer * aspect); row++) {
+                for (int col = (int)Math.floor(petalX - outer); col <= Math.ceil(petalX + outer); col++) {
+                    double dx = col - petalX, dy = (row - petalY) / aspect;
+                    double distance = (dx * dx + dy * dy) / (outer * outer);
+                    if (distance <= 1) tint(col, row, .97 - distance * .25, distance < .42 ? 'o' : '+', 5);
+                }
+            }
+            tint((int)Math.round(petalX), (int)Math.round(petalY), .91, 'o', 5);
+        }
+        tint((int)Math.round(x), (int)Math.round(y), .65, '*', 5);
+    }
+
+    private void rainyCity(double t) {
+        int street = (int)(rows * .72);
+        for (int layer = 0; layer < 2; layer++) {
+            int x = -layer;
+            for (int building = 0; x < cols; building++) {
+                int seed = building * 121 + layer * 725;
+                int width = Math.max(3, (int)(cols * (.08 + noise(seed) * .11)));
+                int roof = street - (int)(rows * (.16 + layer * .07 + noise(seed + 1) * .25));
+                for (int y = roof; y < street; y++) for (int j = 0; j < width - 1; j++) {
+                    boolean window = layer == 1 && j % 3 == 1 && (y - roof) % 3 == 2
+                            && noise(seed + y * 17 + j) > .42;
+                    tint(x + j, y, window ? .88 : layer == 0 ? .19 : .34,
+                         window ? '+' : y == roof ? '-' : ':', window ? 2 : 7);
+                    if (window) {
+                        int reflected = street + 1 + (street - y) / 2;
+                        int shimmer = (int)Math.round(Math.sin(t * 2.2 + y + j));
+                        tint(x + j + shimmer, reflected, .32 + .12 * Math.sin(t + y), '-', 11);
+                    }
+                }
+                x += width;
             }
         }
-        for (int i = 0; i < Math.max(9, cols / 4); i++) {
-            double[] source = SAKURA_BLOSSOMS[i % SAKURA_BLOSSOMS.length];
-            double fall = (noise(i * 31 + 7) + t * (.075 + noise(i * 31 + 8) * .07)) % 1;
-            double drift = fall * .17 + Math.sin(fall * 9 + i) * fall * .08;
-            int x = (int)Math.round(left + width * (source[0] + drift));
-            int y = (int)Math.round(top + height * source[1] + fall * height * .78);
-            tint(x, y, .79 - fall * .38, i % 3 == 0 ? '\'' : '.', 5);
+        for (int x = 0; x < cols; x++) tint(x, street, .32, '_', 1);
+        precipitation(t, false);
+    }
+
+    private void aurora(double t) {
+        int horizon = (int)(rows * .74);
+        for (int i = 0; i < cols; i++) {
+            int x = (int)(noise(i * 23 + 300) * cols), y = (int)(noise(i * 23 + 301) * horizon);
+            tint(x, y, .35 + noise(i * 23 + 302) * .42, '.', 10);
+        }
+        for (int band = 0; band < 3; band++) for (int x = 0; x < cols; x++) {
+            double u = x / (double)cols;
+            double wave = Math.sin(u * 7 + t * .47 + band * .8) * .075
+                    + Math.sin(u * 15 - t * .28) * .024;
+            int edge = (int)(rows * (.30 + band * .082 + wave));
+            int length = Math.max(3, (int)(rows * (.10 + .045 * Math.sin(u * 12 + t * .5 + band))));
+            double glow = .57 + .24 * Math.sin(u * 10 + t * .8 + band);
+            for (int dy = 0; dy < length; dy++) {
+                double light = (1 - dy / (double)length) * glow;
+                if (light > .15 && noise(x * 181 + dy * 19 + band * 133) < .29 + light) {
+                    tint(x, edge - dy, light, (char)0, band == 1 ? 9 : 8);
+                }
+            }
+        }
+        for (int x = 0; x < cols; x++) {
+            double u = x / (double)cols;
+            int ridge = horizon + (int)(rows * (.035 * Math.sin(u * 16) + .024 * Math.cos(u * 28)));
+            tint(x, ridge, .37, '^', 12);
+        }
+    }
+
+    private void autumn(double t) {
+        double width = Math.min(cols * .92, rows / aspect * 1.35);
+        double height = width * aspect * .51;
+        double left = (cols - width) * .5, top = rows * .34 - height * .45;
+        double sway = Math.sin(t * .67) * height * .065;
+        for (int segment = 0; segment < 8; segment++) {
+            double from = segment / 8.0, to = (segment + 1) / 8.0;
+            stroke(left + width * from, top + height * (.23 + .6 * from * from) + sway * from,
+                   left + width * to, top + height * (.23 + .6 * to * to) + sway * to, .85, 3);
+        }
+        for (int i = 0; i < 11; i++) {
+            double u = .08 + i * .083;
+            double x = left + width * u, y = top + height * (.23 + .6 * u * u) + sway * u;
+            double side = i % 2 == 0 ? -1 : 1;
+            double tipX = x + width * (.025 + noise(i + 199) * .055);
+            double tipY = y + side * height * (.15 + noise(i + 201) * .20);
+            stroke(x, y, tipX, tipY, .68, 3);
+            maple((int)Math.round(tipX), (int)Math.round(tipY), 1, i % 3 == 0 ? 6 : 11, .87);
+        }
+        for (int i = 0; i < Math.max(7, cols / 6); i++) {
+            double fall = (noise(i * 29 + 12) + t * (.065 + noise(i * 29 + 13) * .046)) % 1;
+            double u = .1 + .73 * noise(i * 29 + 14);
+            double drift = .19 * fall + .045 * Math.sin(fall * 13 + i) * fall;
+            int x = (int)(left + width * (u + drift));
+            int y = (int)(top + height * (.23 + .6 * u * u) + fall * rows * .65);
+            maple(x, y, Math.cos(fall * 13 + i), i % 3 == 0 ? 6 : 11, .76 - fall * .26);
+        }
+    }
+
+    private void maple(int x, int y, double face, int tone, double brightness) {
+        tint(x, y, brightness, '*', tone);
+        tint(x, y + 1, brightness * .65, '|', tone);
+        if (Math.abs(face) < .4) return;
+        tint(x, y - 1, brightness, '^', tone);
+        tint(x - 1, y, brightness * .89, (char)92, tone);
+        tint(x + 1, y, brightness * .89, '/', tone);
+    }
+
+    private void winter(double t) {
+        for (int x = 0; x < cols; x++) {
+            double u = x / (double)cols;
+            int drift = (int)(rows * (.79 + .04 * Math.cos(u * 10) + .02 * Math.sin(u * 23)));
+            tint(x, drift, .52, '_', 10);
+            for (int y = drift + 1; y < rows; y++) {
+                if (noise(y * 139 + x * 271) > .76) tint(x, y, .24, '.', 10);
+            }
+        }
+        for (int layer = 0; layer < 2; layer++) {
+            int count = layer == 0 ? 8 : 5;
+            for (int i = 0; i < count; i++) {
+                int seed = layer * 300 + i * 37;
+                int x = (int)((i + .22 + noise(seed + 5) * .52) * cols / count);
+                int foot = (int)(rows * (.72 + layer * .075 + noise(seed + 1) * .085));
+                int height = Math.max(6, (int)Math.min(rows * (.16 + .092 * layer + noise(seed + 2) * .13),
+                        cols * aspect * (.24 + .2 * layer)));
+                fir(x, foot, height, layer == 0 ? .65 : 1);
+            }
+        }
+        precipitation(t, true);
+    }
+
+    private void fir(int x, int foot, int height, double brightness) {
+        for (int tier = 0; tier < 3; tier++) {
+            int tip = foot - height + height * tier / 5;
+            int length = Math.max(3, height * (4 + tier) / 10);
+            for (int row = 0; row < length; row++) {
+                int span = (int)(row / aspect * (.30 + tier * .07));
+                for (int dx = -span; dx <= span; dx++) {
+                    boolean snow = row < 2 || Math.abs(dx) >= span - 1 || row == length - 2;
+                    tint(x + dx, tip + row, brightness * (snow ? .77 : .51),
+                         snow ? (dx < 0 ? '/' : dx > 0 ? (char)92 : '*') : ':', snow ? 10 : 12);
+                }
+            }
+        }
+        stroke(x, foot - height * .12, x, foot, brightness * .61, 3);
+    }
+
+    private void precipitation(double t, boolean snow) {
+        int count = Math.min(snow ? 150 : 360, Math.max(16, cols * rows / (snow ? 65 : 22)));
+        for (int i = 0; i < count; i++) {
+            int seed = i * 17 + 393;
+            double depth = noise(seed + 1);
+            double progress = (noise(seed + 2) + t * (snow ? .045 + depth * .09 : .32 + depth * .58)) % 1;
+            double sway = snow ? .028 * Math.sin(t * .8 + i) : -.13 * progress;
+            double horizontal = (1 + noise(seed + 3) + sway) % 1;
+            int x = (int)(horizontal * cols), y = (int)(progress * rows);
+            tint(x, y, .28 + depth * .42, snow ? depth > .79 ? '*' : '.' : '/', snow ? 10 : 1);
         }
     }
 

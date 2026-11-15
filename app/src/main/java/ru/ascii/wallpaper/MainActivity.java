@@ -11,7 +11,6 @@ import android.content.res.ColorStateList;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Typeface;
-import android.graphics.Paint;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
@@ -37,21 +36,10 @@ import java.util.LinkedHashMap;
 public final class MainActivity extends Activity {
     private static final int BG = 0xff020704, PANEL = 0xff06150b, LINE = 0xff174e29;
     private static final int TEXT = 0xffc4ffd3, MUTED = 0xff83b591, ACCENT = 0xff39ff78;
-    private static final String[] SUBTITLES = {
-        "Медленное вращение. Чистая геометрия.", "Мягкий рельеф из движущихся символов.",
-        "Бесконечное движение замкнутой формы.", "Свет, меридианы и плавное дыхание.",
-        "Спиральный танец звёздных символов.", "Знакомый цифровой дождь в новом цвете.",
-        "Коснитесь чёрного фона: появятся ASCII-волны.", "Ваше фото, собранное из символов.", "Видео по кругу. Только символы, без звука.",
-        "Гравитация искривляет орбиты звёзд.", "Пульсирующий источник с волнами лучей.", "Мерцающие огни в тишине космоса.",
-        "Дождь и ветвящиеся молнии.", "Зелёная крона и падающие листья.", "Розовые цветы и летящие лепестки.",
-        "Языки пламени поднимаются снизу.", "Горные хребты движутся на разных планах."
-    };
     private Settings settings;
     private Preview preview;
     private Preview fullPreview;
     private Dialog fullDialog;
-    private TextView caption, liveLabel;
-    private TextView gridReadout;
     private LinearLayout cubeOptions;
     private LinearLayout mediaOptions;
     private PresetStore presetStore;
@@ -84,51 +72,40 @@ public final class MainActivity extends Activity {
         LinearLayout content = column(); content.setPadding(dp(22), dp(24), dp(22), dp(20));
         scroll.addView(content);
 
-        TextView eyebrow = text("[ СИСТЕМА АКТИВНА ]     v1.7.1", 10, ACCENT);
-        eyebrow.setLetterSpacing(.1f); content.addView(eyebrow);
-        TextView title = text("ASCII_FLOW▌", 30, ACCENT);
-        title.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
-        title.setShadowLayer(dp(10), 0, 0, 0x6639ff78);
-        content.addView(title, margins(-1, -2, 0, 6, 0, 2));
-        content.addView(text("> реальность состоит из символов_", 12, MUTED), margins(-1, -2, 0, 0, 0, 22));
-        content.addView(text(settings.device.description(), 11, MUTED), margins(-1, -2, 0, 0, 0, 14));
+        TextView title = text("ASCII Flow", 25, TEXT);
+        content.addView(title, margins(-1, -2, 0, 0, 0, 16));
 
         FrameLayout stage = new FrameLayout(this);
         stage.setBackground(shape(Color.BLACK, LINE, 22)); stage.setClipToOutline(true);
         preview = new Preview(); stage.addView(preview, new FrameLayout.LayoutParams(-1, -1));
-        stage.addView(new Scanlines(), new FrameLayout.LayoutParams(-1, -1));
-        liveLabel = text("01 / КУБ", 10, MUTED); liveLabel.setLetterSpacing(.15f);
-        FrameLayout.LayoutParams badge = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.START);
-        badge.setMargins(dp(18), dp(16), 0, 0); stage.addView(liveLabel, badge);
-        TextView live = text("●  LIVE", 10, ACCENT);
-        FrameLayout.LayoutParams liveParams = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
-        liveParams.setMargins(0, dp(16), dp(18), 0); stage.addView(live, liveParams);
-        TextView stageFooter = text("ПРЕДПРОСМОТР", 9, MUTED); stageFooter.setLetterSpacing(.2f);
-        FrameLayout.LayoutParams footerParams = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
-        footerParams.bottomMargin = dp(16); stage.addView(stageFooter, footerParams);
-        content.addView(stage, margins(-1, dp(285), 0, 0, 0, 12));
-        caption = text(SUBTITLES[settings.mode()], 12, MUTED); caption.setGravity(Gravity.CENTER);
-        content.addView(caption, margins(-1, -2, 0, 0, 0, 10));
-        Button expand = button("[ Развернуть предпросмотр ]");
+        content.addView(stage, margins(-1, dp(240), 0, 0, 0, 10));
+        slider(content, "Частота кадров", "fps_limit", 0, settings.maxFps(), settings.requestedFps());
+        toggle(content, "Экономный режим (до 15 FPS)", "eco", false);
+        Button expand = button("На весь экран");
         expand.setOnClickListener(v -> openPreview());
         content.addView(expand, margins(-1, dp(48), 0, 0, 0, 12));
-        section(content,"00","ЧАСЫ НА БЛОКИРОВКЕ");
+        section(content, "ЧАСЫ НА БЛОКИРОВКЕ");
         toggle(content,"ASCII-часы на экране блокировки","lock_clock",false);
         slider(content,"Положение часов по вертикали","lock_clock_y",0,100,settings.lockClockY());
-        content.addView(text("0 — выше, 100 — ниже. По умолчанию часы на прежнем месте.\nПолзунок есть и в предпросмотре часов.",11,MUTED),margins(-1,-2,0,0,0,12));
-        content.addView(text("По умолчанию выключены. Только часы и минуты,\nбез даты и погоды. На рабочем столе остаётся выбранный эффект.\nУстановите ASCII Flow также на экран блокировки.\nШтатные часы Samsung скрываются отдельно в настройках Good Lock, если прошивка это позволяет.",11,MUTED),margins(-1,-2,0,0,0,12));
         action(content,"[ Предпросмотр ASCII-часов ]",() -> openPreview(true));
-        section(content, "01", "РЕЖИМ ДВИЖЕНИЯ");
-        String[] marks = {"[+]", "≈", "◎", "◉", "✦", "//", "(~)", "[i]", "[>]", "●", "*", "·", "ϟ", "♣", "✿", "^", "∧"};
+        section(content, "РЕЖИМ ДВИЖЕНИЯ");
+        String[] marks = {"[+]", "≈", "◎", "◉", "✦", "//", "(~)", "[i]", "[>]", "●", "*", "·", "ϟ", "♣", "✿", "^", "∧", "▥", "≈", "♧", "❄"};
         for (int row = 0; row < (modes.length+1)/2; row++) {
             LinearLayout pair = new LinearLayout(this);
+            pair.setBaselineAligned(false);
+            pair.setGravity(Gravity.TOP);
+            boolean single = row * 2 + 1 == modes.length;
             for (int col = 0; col < 2; col++) {
                 final int mode = row * 2 + col;
                 if(mode>=modes.length)break;
                 Button button = button(marks[mode] + "   " + AsciiScene.NAMES[mode]); modes[mode] = button;
+                button.setGravity(Gravity.CENTER);
+                button.setMaxLines(2);
+                button.setAutoSizeTextTypeUniformWithConfiguration(10, 14, 1, android.util.TypedValue.COMPLEX_UNIT_SP);
                 button.setOnClickListener(v -> { settings.set("mode", mode); refresh(); });
                 LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(0, dp(52), 1);
-                bp.setMargins(col == 0 ? 0 : dp(5), 0, col == 0 ? dp(5) : 0, dp(10)); pair.addView(button, bp);
+                bp.setMargins(col == 0 ? 0 : dp(5), 0, col == 0 && !single ? dp(5) : 0, dp(10));
+                pair.addView(button, bp);
             }
             content.addView(pair);
         }
@@ -163,17 +140,15 @@ public final class MainActivity extends Activity {
         slider(content,"Скорость кругов","ripple_speed",25,250,settings.parameter("ripple_speed",100,25,250));
         slider(content,"Жизнь волны, сек.","ripple_life",1,10,settings.parameter("ripple_life",4,1,10));
         toggle(content,"Волны от касаний поверх других режимов","touch",true);
-        content.addView(text("В режиме «Касание» волны включены всегда.\nНа рабочем столе доставку касаний определяет лаунчер.",11,MUTED),margins(-1,-2,0,4,0,12));
         mediaOptions=column();
         mediaLabel=text("",12,MUTED); mediaOptions.addView(mediaLabel);
         Button choose=button("[ Выбрать файл ]"); choose.setOnClickListener(v -> chooseMedia());
         mediaOptions.addView(choose,margins(-1,dp(52),0,10,0,10));
         slider(mediaOptions,"Контраст медиа","media_contrast",25,250,settings.parameter("media_contrast",100,25,250));
         toggle(mediaOptions,"Инверсия света и тени","media_invert",false);
-        mediaOptions.addView(text("Фото — неподвижное. Видео — по кругу без звука,\nдо 10 ASCII-кадров/с. Кадр заполняет экран с обрезкой по центру.",11,MUTED));
         content.addView(mediaOptions,margins(-1,-2,0,8,0,18));
 
-        section(content, "02", "ШРИФТ СИМВОЛОВ");
+        section(content, "ШРИФТ СИМВОЛОВ");
         for (int i = 0; i < fontButtons.length; i++) {
             final int font = i;
             LinearLayout card = column(); card.setPadding(dp(10), dp(6), dp(10), dp(4));
@@ -187,12 +162,10 @@ public final class MainActivity extends Activity {
             card.addView(sample, new LinearLayout.LayoutParams(-1, dp(42)));
             content.addView(card, margins(-1, -2, 0, 0, 0, 10));
         }
-        content.addView(text("Terminal — пиксельный стиль старого cmd.\nClassic — гладкий консольный шрифт Cousine.", 11, MUTED), margins(-1, -2, 0, 0, 0, 14));
         symbolsLabel=text("",12,MUTED); content.addView(symbolsLabel);
         Button symbolsButton=button("[ Свои ASCII-символы ]"); symbolsButton.setOnClickListener(v -> editSymbols());
         content.addView(symbolsButton,margins(-1,dp(52),0,8,0,14));
-        section(content, "03", "ПЛОТНОСТЬ И РАЗМЕР");
-        content.addView(text("Больше столбцов → мельче и плотнее сетка.\nРазмер знака меняет заполнение ячейки.\nНажмите значение для точного ввода.", 11, MUTED), margins(-1, -2, 0, 0, 0, 12));
+        section(content, "ПЛОТНОСТЬ И РАЗМЕР");
         LinearLayout presets = new LinearLayout(this);
         String[] presetNames = {"Крупно", "Баланс", "Мелко"};
         int[] presetColumns = {36, 64, 120};
@@ -215,14 +188,9 @@ public final class MainActivity extends Activity {
         auto.setOnClickListener(v -> {
             controls.get("columns").setValue(settings.device.columns());
             settings.prefs.edit().remove("columns").apply();
-            updateGridReadout();
         });
         content.addView(auto, margins(-1, dp(52), 0, 0, 0, 10));
-        gridReadout = text("", 11, ACCENT);
-        gridReadout.setPadding(dp(12), dp(12), dp(12), dp(12)); gridReadout.setBackground(shape(PANEL, LINE, 3));
-        content.addView(gridReadout, margins(-1, -2, 0, 0, 0, 14));
-
-        section(content, "04", "ЦВЕТ И ДВИЖЕНИЕ");
+        section(content, "ЦВЕТ И ДВИЖЕНИЕ");
         content.addView(text("Цвет символов", 13, MUTED), margins(-1, -2, 0, 0, 0, 10));
         HorizontalScrollView colorScroll = new HorizontalScrollView(this); colorScroll.setHorizontalScrollBarEnabled(false);
         LinearLayout palette = new LinearLayout(this); colorScroll.addView(palette);
@@ -236,25 +204,16 @@ public final class MainActivity extends Activity {
         content.addView(colorScroll, margins(-1, -2, 0, 0, 0, 18));
         slider(content, "Скорость / 0 = пауза", "speed", 0, 180, settings.speed());
         slider(content, "Яркость", "brightness", 5, 100, settings.brightness());
-        Switch eco = new Switch(this); eco.setText("Экономный режим · 15 FPS"); eco.setTextSize(14); eco.setTextColor(TEXT);
-        eco.setTypeface(Typeface.MONOSPACE);
-        eco.setPadding(dp(14), dp(8), dp(14), dp(8)); eco.setBackground(shape(PANEL, LINE, 14));
-        eco.setChecked(settings.prefs.getBoolean("eco", false));
-        eco.setOnCheckedChangeListener((v, checked) -> settings.prefs.edit().putBoolean("eco", checked).apply());
-        content.addView(eco, margins(-1, -2, 0, 8, 0, 14)); eco.setMinimumHeight(dp(58));
-        TextView note = text("Чёрный фон • Без рекламы • Работает офлайн\nАнимация останавливается, когда обои не видны.", 11, MUTED);
-        note.setLineSpacing(dp(4), 1); content.addView(note);
-        section(content,"05","МОИ ПРЕСЕТЫ");
+        section(content, "МОИ ПРЕСЕТЫ");
         action(content,"Сохранить текущие настройки",this::savePreset);
         action(content,"Открыть / удалить пресет",this::showPresets);
         action(content,"Экспорт пресетов в файл",() -> document(Intent.ACTION_CREATE_DOCUMENT,"application/json",202));
         action(content,"Импорт пресетов из файла",() -> document(Intent.ACTION_OPEN_DOCUMENT,"*/*",203));
-        content.addView(text("Файл переносит настройки и символы.\nФото и видео выберите заново на другом устройстве.",11,MUTED));
 
         LinearLayout dock = column(); dock.setPadding(dp(22), dp(12), dp(22), dp(12));
         dock.setBackgroundColor(BG);
-        Button apply = button("> УСТАНОВИТЬ ОБОИ_"); apply.setTextColor(BG);
-        apply.setTypeface(Typeface.MONOSPACE, Typeface.BOLD); apply.setBackground(shape(ACCENT, ACCENT, 3));
+        Button apply = button("Установить обои"); apply.setTextColor(BG);
+        apply.setTypeface(getResources().getFont(R.font.terminal_ui), Typeface.BOLD); apply.setBackground(shape(ACCENT, ACCENT, 3));
         apply.setOnClickListener(v -> applyWallpaper());
         dock.addView(apply, new LinearLayout.LayoutParams(-1, dp(54))); root.addView(dock);
         refresh();
@@ -272,7 +231,6 @@ public final class MainActivity extends Activity {
             colors[i].setTextColor(Settings.COLORS[i]); colors[i].setSelected(i == color);
             colors[i].setBackground(shape(PANEL, i == color ? Settings.COLORS[i] : LINE, 14));
         }
-        caption.setText(SUBTITLES[selected]);
         cubeOptions.setVisibility(selected == 0 ? View.VISIBLE : View.GONE);
         showControl("object_scale",selected==0||selected==2||selected==3||selected==4||selected==9);
         showControl("rotation_x",selected==0||selected==2||selected==3); showControl("rotation_y",selected==0||selected==2||selected==3);
@@ -293,9 +251,7 @@ public final class MainActivity extends Activity {
             selection(fontButtons[i], i == settings.font());
             fontButtons[i].setText((i == settings.font() ? "[x] " : "[ ] ") + Settings.FONT_NAMES[i]);
         }
-        liveLabel.setText(String.format(java.util.Locale.ROOT, "%02d / %s", selected + 1, AsciiScene.NAMES[selected].toUpperCase(java.util.Locale.ROOT)));
         preview.invalidate();
-        updateGridReadout();
     }
 
     private void showControl(String key,boolean visible) {
@@ -304,7 +260,7 @@ public final class MainActivity extends Activity {
     }
     private void toggle(LinearLayout parent,String label,String key,boolean fallback) {
         Switch view=new Switch(this); view.setText(label); view.setTextColor(TEXT); view.setTextSize(12);
-        view.setTypeface(Typeface.MONOSPACE); view.setMinimumHeight(dp(56)); view.setChecked(settings.prefs.getBoolean(key,fallback));
+        view.setTypeface(getResources().getFont(R.font.terminal_ui)); view.setMinimumHeight(dp(56)); view.setChecked(settings.prefs.getBoolean(key,fallback));
         view.setOnCheckedChangeListener((v,checked) -> { settings.prefs.edit().putBoolean(key,checked).apply(); refresh(); });
         parent.addView(view,margins(-1,-2,0,6,0,10));
         toggles.put(key,view);
@@ -315,7 +271,7 @@ public final class MainActivity extends Activity {
     }
     private void message(String value) { Toast.makeText(this,value,Toast.LENGTH_LONG).show(); }
     private void editSymbols() {
-        EditText input=new EditText(this); input.setText(settings.symbols()); input.setTextColor(TEXT); input.setTypeface(Typeface.MONOSPACE);
+        EditText input=new EditText(this); input.setText(settings.symbols()); input.setTextColor(TEXT); input.setTypeface(getResources().getFont(R.font.terminal_ui));
         input.setSingleLine(true); input.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(94)});
         LinearLayout box=column(); box.setPadding(dp(24),dp(8),dp(24),dp(8));
         box.addView(text("Латиница, цифры, ASCII-знаки — до 94.\nПорядок: от лёгких к плотным.\nПустое поле возвращает стандартный набор.",12,MUTED));
@@ -401,6 +357,7 @@ public final class MainActivity extends Activity {
         parent.addView(control, margins(-1, -2, 0, 4, 0, 12));
     }
     private String value(String key, int n) {
+        if (key.equals("fps_limit")) return n == 0 ? "Авто" : n + " FPS";
         if (key.equals("speed")) return n == 0 ? "ПАУЗА" : String.format(java.util.Locale.ROOT, "%.2f×", n / 30f);
         return key.equals("columns")||key.equals("galaxy_arms")||key.equals("rain_spacing")||key.equals("ripple_life") ? n + "" : n + "%";
     }
@@ -408,15 +365,6 @@ public final class MainActivity extends Activity {
         button.setSelected(selected);
         button.setTextColor(selected ? ACCENT : TEXT);
         button.setBackground(shape(selected ? 0xff0c3319 : PANEL, selected ? ACCENT : LINE, 3));
-    }
-    private void updateGridReadout() {
-        if (gridReadout == null) return;
-        android.util.DisplayMetrics metrics = getResources().getDisplayMetrics();
-        GridGeometry grid = new GridGeometry();
-        grid.configure(metrics.widthPixels, metrics.heightPixels, settings.columns(), settings.rowSpacing());
-        gridReadout.setText(String.format(java.util.Locale.ROOT,
-                "> Сетка экрана: %d × %d\n> Ширина знака: ~%.1f px\n> Настройки сохраняются автоматически",
-                grid.cols, grid.rows, grid.cellW * settings.glyphScale() / 100f));
     }
     private void openPreview() {
         openPreview(false);
@@ -429,7 +377,7 @@ public final class MainActivity extends Activity {
         fullPreview = new Preview(clockPreview);
         final Preview full = fullPreview;
         root.addView(full, new FrameLayout.LayoutParams(-1, -1));
-        Button close = button("[ ЗАКРЫТЬ ]");
+        Button close = button("Закрыть");
         FrameLayout.LayoutParams closeParams = new FrameLayout.LayoutParams(dp(160), dp(52), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
         closeParams.bottomMargin = dp(36); root.addView(close, closeParams);
         close.setOnClickListener(v -> dialog.dismiss());
@@ -472,19 +420,19 @@ public final class MainActivity extends Activity {
             }
         }
     }
-    private void section(LinearLayout parent, String number, String title) {
-        TextView label = text(number + "  /  " + title, 16, TEXT);
-        label.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+    private void section(LinearLayout parent, String title) {
+        TextView label = text(title, 16, TEXT);
+        label.setTypeface(getResources().getFont(R.font.terminal_ui), Typeface.BOLD);
         parent.addView(label, margins(-1, -2, 0, 12, 0, 16));
     }
     private LinearLayout column() { LinearLayout layout = new LinearLayout(this); layout.setOrientation(1); return layout; }
     private TextView text(String value, int size, int color) {
         TextView view = new TextView(this); view.setText(value); view.setTextSize(size); view.setTextColor(color);
-        view.setTypeface(Typeface.MONOSPACE); return view;
+        view.setTypeface(getResources().getFont(R.font.terminal_ui)); return view;
     }
     private Button button(String label) {
         Button view = new Button(this); view.setText(label); view.setAllCaps(false); view.setTextSize(14);
-        view.setTypeface(Typeface.MONOSPACE); view.setBackground(shape(PANEL, LINE, 3));
+        view.setTypeface(getResources().getFont(R.font.terminal_ui)); view.setBackground(shape(PANEL, LINE, 3));
         view.setTextColor(TEXT); view.setMinWidth(0); view.setMinimumWidth(0);
         view.setPadding(dp(8), 0, dp(8), 0); return view;
     }
@@ -529,7 +477,7 @@ public final class MainActivity extends Activity {
             seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
                 public void onProgressChanged(SeekBar bar, int progress, boolean user) {
                     int n = progress + min;
-                    settings.set(key, n); number.setText(value(key, n)); updateGridReadout();
+                    settings.set(key, n); number.setText(value(key, n));
                     preview.invalidate();
                     if (fullPreview != null) fullPreview.invalidate();
                 }
@@ -545,10 +493,10 @@ public final class MainActivity extends Activity {
         void edit() {
             EditText input = new EditText(MainActivity.this);
             input.setInputType(InputType.TYPE_CLASS_NUMBER); input.setSingleLine(true);
-            input.setTypeface(Typeface.MONOSPACE); input.setTextColor(TEXT);
+            input.setTypeface(getResources().getFont(R.font.terminal_ui)); input.setTextColor(TEXT);
             input.setText(String.valueOf(seek.getProgress() + min)); input.selectAll();
             LinearLayout box = column(); box.setPadding(dp(24), dp(8), dp(24), dp(8));
-            box.addView(text("Диапазон: " + min + "–" + max + (key.equals("speed") ? "\n30 = 1×, 0 = пауза" : ""), 12, MUTED));
+            box.addView(text("Диапазон: " + min + "–" + max + (key.equals("speed") ? "\n30 = 1×, 0 = пауза" : key.equals("fps_limit") ? "\n0 = авто" : ""), 12, MUTED));
             box.addView(input);
             AlertDialog dialog = new AlertDialog.Builder(MainActivity.this).setTitle(name).setView(box)
                 .setNegativeButton("Отмена", null).setPositiveButton("Применить", null).create();
@@ -574,22 +522,12 @@ public final class MainActivity extends Activity {
             for (int i = 0; i < sample.length; i++) renderer.draw(canvas, sample, i, (i + 1) * step, getHeight() * .5f, 235);
         }
     }
-    private final class Scanlines extends View {
-        private final Paint paint = new Paint();
-        Scanlines() { super(MainActivity.this); setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO); }
-        @Override protected void onDraw(Canvas canvas) {
-            paint.setColor(0x0e39ff78);
-            for (int y = 0; y < getHeight(); y += dp(4)) canvas.drawLine(0, y, getWidth(), y, paint);
-            paint.setColor(LINE); paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(dp(1));
-            canvas.drawRect(1, 1, getWidth() - 1, getHeight() - 1, paint);
-        }
-    }
-
     private final class Preview extends View {
         private final AsciiPainter painter = new AsciiPainter(MainActivity.this);
         private final LockClockRenderer clock=new LockClockRenderer(MainActivity.this);
         private final boolean clockPreview;
         private boolean running;
+        private final FramePacer pacer = new FramePacer();
         private final Runnable tick = () -> { if (running) invalidate(); };
         Preview() { this(false); }
         Preview(boolean clockPreview) { super(MainActivity.this);this.clockPreview=clockPreview; setContentDescription(clockPreview?"Предпросмотр ASCII-часов":"Анимированный предпросмотр ASCII-обоев"); }
@@ -606,11 +544,15 @@ public final class MainActivity extends Activity {
         }
         @Override public boolean performClick() { super.performClick(); return true; }
         @Override protected void onDraw(Canvas canvas) {
+            long startedAt = android.os.SystemClock.uptimeMillis();
             super.onDraw(canvas);
             if(clockPreview)clock.draw(canvas,getWidth(),getHeight(),settings);
             else painter.draw(canvas, getWidth(), getHeight(), getResources().getDisplayMetrics().density, settings, true);
             removeCallbacks(tick);
-            if (running) postDelayed(tick, clockPreview?1000:1000 / settings.fps());
+            if (running) {
+                long next = pacer.nextFrame(startedAt, clockPreview ? 1 : settings.fps());
+                postDelayed(tick, Math.max(0, next - android.os.SystemClock.uptimeMillis()));
+            }
         }
         @Override protected void onDetachedFromWindow() { stop(); painter.close(); clock.close(); super.onDetachedFromWindow(); }
     }

@@ -5,7 +5,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.PowerManager;
+import android.os.SystemClock;
 import android.service.wallpaper.WallpaperService;
 import android.view.SurfaceHolder;
 
@@ -27,6 +27,7 @@ public final class AsciiWallpaperService extends WallpaperService {
         private boolean visible, ready, destroyed;
         private long lastTouch;
         private final Runnable frame = this::drawFrame;
+        private final FramePacer pacer = new FramePacer();
 
         @Override public void onCreate(SurfaceHolder holder) {
             super.onCreate(holder);
@@ -78,6 +79,7 @@ public final class AsciiWallpaperService extends WallpaperService {
         private void drawFrame() {
             handler.removeCallbacks(frame);
             if (!ready || destroyed) return;
+            long startedAt = SystemClock.uptimeMillis();
             SurfaceHolder holder = getSurfaceHolder();
             Canvas canvas = null;
             try {
@@ -97,9 +99,7 @@ public final class AsciiWallpaperService extends WallpaperService {
                 }
             }
             if (visible && ready && !destroyed) {
-                PowerManager power = (PowerManager)getSystemService(POWER_SERVICE);
-                int fps = power != null && power.isPowerSaveMode() ? 15 : settings.fps();
-                handler.postDelayed(frame, showingClock?250:1000 / fps);
+                handler.postAtTime(frame, pacer.nextFrame(startedAt, showingClock ? 4 : settings.fps()));
             }
         }
     }

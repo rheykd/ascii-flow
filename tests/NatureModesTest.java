@@ -6,7 +6,7 @@ public final class NatureModesTest {
         AsciiScene scene = new AsciiScene();
         for (int[] size : new int[][] {{24, 36}, {64, 108}, {120, 42}}) {
             scene.resize(size[0], size[1]);
-            for (int mode = 12; mode <= 16; mode++) {
+            for (int mode = 12; mode <= 20; mode++) {
                 scene.render(mode, .08, .52);
                 float[] first = scene.light.clone();
                 boolean changed = false;
@@ -30,6 +30,6 @@ public final class NatureModesTest {
             scene.render(0, 1, .52);
             for (byte tone : scene.tones) if (tone != 0) throw new AssertionError("Palette leaked into cube");
         }
-        System.out.println("PASS: five animated nature modes, brightness, palettes and long uptime.");
+        System.out.println("PASS: nine animated nature modes, brightness, palettes and long uptime.");
     }
 }

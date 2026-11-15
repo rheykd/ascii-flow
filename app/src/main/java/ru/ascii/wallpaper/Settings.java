@@ -41,7 +41,13 @@ final class Settings {
     boolean wireframe() { return bounded("cube_style", 1, 0, 1) == 1; }
     int speed() { return bounded("speed", 30, 0, 180); }
     int brightness() { return bounded("brightness", 80, 5, 100); }
-    int fps() { return prefs.getBoolean("eco", false) ? 15 : device.fps(); }
+    int maxFps() { return device.displayFps; }
+    int requestedFps() { return bounded("fps_limit", 0, 0, maxFps()); }
+    int fps() {
+        int requested = requestedFps();
+        int target = requested == 0 ? Math.min(maxFps(), device.modest ? 15 : 30) : requested;
+        return prefs.getBoolean("eco", false) || device.powerSaving() ? Math.min(15, target) : target;
+    }
     void set(String key, int value) { prefs.edit().putInt(key, value).apply(); }
     private int bounded(String key, int fallback, int min, int max) {
         return Math.max(min, Math.min(max, prefs.getInt(key, fallback)));
