@@ -84,7 +84,7 @@ public final class MainActivity extends Activity {
         LinearLayout content = column(); content.setPadding(dp(22), dp(24), dp(22), dp(20));
         scroll.addView(content);
 
-        TextView eyebrow = text("[ СИСТЕМА АКТИВНА ]     v1.7", 10, ACCENT);
+        TextView eyebrow = text("[ СИСТЕМА АКТИВНА ]     v1.7.1", 10, ACCENT);
         eyebrow.setLetterSpacing(.1f); content.addView(eyebrow);
         TextView title = text("ASCII_FLOW▌", 30, ACCENT);
         title.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);

@@ -58,8 +58,8 @@ public final class AsciiScene {
             case 10: pulsar(t); break;
             case 11: stars(t); break;
             case 12: storm(t); break;
-            case 13: tree(t, false); break;
-            case 14: tree(t, true); break;
+            case 13: tree(t); break;
+            case 14: sakura(t); break;
             case 15: fire(t); break;
             case 16: landscape(t); break;
             default: if (wireframe) wireCube(); else cube();
@@ -115,20 +115,19 @@ public final class AsciiScene {
         }
     }
 
-    private void tree(double t, boolean sakura) {
+    private void tree(double t) {
         double width = Math.min(cols * .76, rows / aspect * .72);
-        double height = Math.min(rows * .64, width * aspect * (sakura ? 1.05 : 1.35));
+        double height = Math.min(rows * .64, width * aspect * 1.35);
         double center = (cols - 1) * .5, base = rows * .82;
         double crown = base - height * .7;
         double sway = Math.sin(t * .55) * width * .025;
-        int leafTone = sakura ? 5 : 4;
         for (int i = 0; i < Math.max(2, (int)(width * .055)); i++) {
             stroke(center + i - width * .033, base, center + sway * .3, crown, .75, 3);
         }
         for (int branch = 0; branch < 7; branch++) {
             double offset = (branch - 3) / 3.0;
             double x = center + width * offset * .39 + sway;
-            double y = crown - height * (.19 - Math.abs(offset) * (sakura ? .11 : .24));
+            double y = crown - height * (.19 - Math.abs(offset) * .24);
             double forkX = center + (x - center) * .56;
             double forkY = crown + height * .08;
             stroke(center, crown + height * .29, forkX, forkY, .73, 3);
@@ -138,7 +137,7 @@ public final class AsciiScene {
                 double radius = Math.sqrt(noise(seed + 1)), angle = noise(seed + 2) * Math.PI * 2;
                 tint((int)Math.round(x + Math.cos(angle) * radius * width * .16),
                      (int)Math.round(y + Math.sin(angle) * radius * height * .13),
-                     .43 + noise(seed + 3) * .53, sakura ? '*' : '+', leafTone);
+                     .43 + noise(seed + 3) * .53, '+', 4);
             }
         }
         for (int i = 0; i < Math.max(10, cols / 3); i++) {
@@ -146,7 +145,68 @@ public final class AsciiScene {
             double x = center + (noise(i * 13 + 43) - .5) * width * .88
                     + width * .1 * Math.sin(fall * 5 + i) * fall;
             tint((int)x, (int)(crown + fall * (base - crown + height * .14)),
-                    .47 + .45 * (1 - fall), sakura ? '.' : '~', leafTone);
+                    .47 + .45 * (1 - fall), '~', 4);
+        }
+    }
+
+    // Каждая ветвь задаётся ломаной в координатах силуэта, от основания к верхушке.
+    private static final double[][] SAKURA_BRANCHES = {
+        {.57,1, .53,.87, .46,.70, .45,.54, .53,.39, .64,.25, .71,.14},
+        {.46,.70, .36,.59, .26,.51, .14,.44, .07,.33},
+        {.36,.59, .30,.44, .23,.32, .15,.24},
+        {.45,.54, .40,.40, .36,.26, .42,.13},
+        {.36,.26, .28,.21, .30,.10},
+        {.53,.39, .57,.27, .53,.17, .55,.06},
+        {.46,.70, .62,.64, .76,.53, .87,.48, .94,.36},
+        {.76,.53, .81,.39, .86,.28},
+        {.53,.39, .69,.38, .76,.30, .78,.22}
+    };
+    // Плоские группы цветов разного размера оставляют видимыми развилки ветвей.
+    private static final double[][] SAKURA_BLOSSOMS = {
+        {.08,.33,.075,.055}, {.15,.24,.08,.062}, {.23,.33,.067,.047},
+        {.29,.11,.079,.065}, {.40,.15,.075,.064}, {.51,.08,.097,.06},
+        {.63,.18,.075,.059}, {.72,.13,.084,.052}, {.79,.23,.077,.054},
+        {.87,.28,.08,.058}, {.93,.36,.064,.053}, {.82,.40,.07,.05},
+        {.67,.37,.058,.046}, {.22,.48,.066,.045}
+    };
+
+    private void sakura(double t) {
+        double width = Math.min(cols * .89, rows / aspect * 1.25);
+        double height = Math.min(rows * .66, width * aspect * .78);
+        double left = (cols - width) * .5, top = rows * .80 - height;
+        for (int branch = 0; branch < SAKURA_BRANCHES.length; branch++) {
+            double[] points = SAKURA_BRANCHES[branch];
+            for (int i = 2; i < points.length; i += 2) {
+                double x = left + width * points[i - 2], y = top + height * points[i - 1];
+                double endX = left + width * points[i], endY = top + height * points[i + 1];
+                stroke(x, y, endX, endY, branch == 0 ? .88 : .64, 3);
+                if (branch == 0 && i <= 6) {
+                    int thickness = Math.max(1, (int)(width * (.056 - i * .006)));
+                    for (int j = 1; j <= thickness; j++) {
+                        stroke(x + j, y, endX + j * (i == 6 ? 0 : .65), endY, .68, 3);
+                    }
+                }
+            }
+        }
+        for (int cluster = 0; cluster < SAKURA_BLOSSOMS.length; cluster++) {
+            double[] blossom = SAKURA_BLOSSOMS[cluster];
+            for (int i = 0; i < Math.max(9, (int)(width * height * .018)); i++) {
+                int seed = cluster * 4099 + i * 5;
+                double angle = noise(seed + 12) * Math.PI * 2;
+                double radius = Math.sqrt(noise(seed + 13)) * (.86 + .17 * Math.cos(angle * 5));
+                int x = (int)Math.round(left + width * (blossom[0] + Math.cos(angle) * radius * blossom[2]));
+                int y = (int)Math.round(top + height * (blossom[1] + Math.sin(angle) * radius * blossom[3]));
+                double glow = noise(seed + 14);
+                tint(x, y, .46 + glow * .5, glow > .58 ? '*' : 'o', 5);
+            }
+        }
+        for (int i = 0; i < Math.max(9, cols / 4); i++) {
+            double[] source = SAKURA_BLOSSOMS[i % SAKURA_BLOSSOMS.length];
+            double fall = (noise(i * 31 + 7) + t * (.075 + noise(i * 31 + 8) * .07)) % 1;
+            double drift = fall * .17 + Math.sin(fall * 9 + i) * fall * .08;
+            int x = (int)Math.round(left + width * (source[0] + drift));
+            int y = (int)Math.round(top + height * source[1] + fall * height * .78);
+            tint(x, y, .79 - fall * .38, i % 3 == 0 ? '\'' : '.', 5);
         }
     }
 
