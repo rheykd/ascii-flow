@@ -17,6 +17,10 @@ import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowInsets;
+import android.view.MotionEvent;
+import android.net.Uri;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
@@ -36,7 +40,8 @@ public final class MainActivity extends Activity {
     private static final String[] SUBTITLES = {
         "Медленное вращение. Чистая геометрия.", "Мягкий рельеф из движущихся символов.",
         "Бесконечное движение замкнутой формы.", "Свет, меридианы и плавное дыхание.",
-        "Спиральный танец звёздных символов.", "Знакомый цифровой дождь в новом цвете."
+        "Спиральный танец звёздных символов.", "Знакомый цифровой дождь в новом цвете.",
+        "Коснитесь чёрного фона: появятся ASCII-волны.", "Ваше фото, собранное из символов.", "Видео по кругу. Только символы, без звука."
     };
     private Settings settings;
     private Preview preview;
@@ -45,13 +50,17 @@ public final class MainActivity extends Activity {
     private TextView caption, liveLabel;
     private TextView gridReadout;
     private LinearLayout cubeOptions;
-    private final Button[] modes = new Button[6], colors = new Button[Settings.COLORS.length];
+    private LinearLayout mediaOptions;
+    private PresetStore presetStore;
+    private TextView symbolsLabel, mediaLabel;
+    private final Button[] modes = new Button[AsciiScene.NAMES.length], colors = new Button[Settings.COLORS.length];
     private final Button[] fontButtons = new Button[Settings.FONT_NAMES.length], cubeButtons = new Button[2];
     private final LinkedHashMap<String, Control> controls = new LinkedHashMap<>();
 
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         settings = new Settings(this);
+        presetStore = new PresetStore(this,settings);
         getWindow().setNavigationBarColor(BG);
         getWindow().setStatusBarColor(BG);
         LinearLayout root = new LinearLayout(this);
@@ -71,7 +80,7 @@ public final class MainActivity extends Activity {
         LinearLayout content = column(); content.setPadding(dp(22), dp(24), dp(22), dp(20));
         scroll.addView(content);
 
-        TextView eyebrow = text("[ СИСТЕМА АКТИВНА ]     v1.2", 10, ACCENT);
+        TextView eyebrow = text("[ СИСТЕМА АКТИВНА ]     v1.3", 10, ACCENT);
         eyebrow.setLetterSpacing(.1f); content.addView(eyebrow);
         TextView title = text("ASCII_FLOW▌", 30, ACCENT);
         title.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
@@ -100,11 +109,12 @@ public final class MainActivity extends Activity {
         expand.setOnClickListener(v -> openPreview());
         content.addView(expand, margins(-1, dp(48), 0, 0, 0, 12));
         section(content, "01", "РЕЖИМ ДВИЖЕНИЯ");
-        String[] marks = {"[+]", "≈", "◎", "◉", "✦", "//"};
-        for (int row = 0; row < 3; row++) {
+        String[] marks = {"[+]", "≈", "◎", "◉", "✦", "//", "(~)", "[i]", "[>]"};
+        for (int row = 0; row < (modes.length+1)/2; row++) {
             LinearLayout pair = new LinearLayout(this);
             for (int col = 0; col < 2; col++) {
                 final int mode = row * 2 + col;
+                if(mode>=modes.length)break;
                 Button button = button(marks[mode] + "   " + AsciiScene.NAMES[mode]); modes[mode] = button;
                 button.setOnClickListener(v -> { settings.set("mode", mode); refresh(); });
                 LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(0, dp(52), 1);
@@ -127,6 +137,27 @@ public final class MainActivity extends Activity {
         cubeOptions.addView(text("Все 12 рёбер соединены. В режиме каркаса\nсквозь куб видны задние линии.", 11, MUTED), margins(-1, -2, 0, 10, 0, 12));
         content.addView(cubeOptions);
         slider(content, "Масштаб фигуры", "object_scale", 40, 140, settings.objectScale());
+        slider(content,"Вращение по X","rotation_x",0,200,settings.parameter("rotation_x",100,0,200));
+        slider(content,"Вращение по Y","rotation_y",0,200,settings.parameter("rotation_y",100,0,200));
+        slider(content,"Частота волн","wave_frequency",25,250,settings.parameter("wave_frequency",100,25,250));
+        slider(content,"Сила волн","wave_strength",10,200,settings.parameter("wave_strength",100,10,200));
+        slider(content,"Толщина тора","torus_thickness",30,160,settings.parameter("torus_thickness",100,30,160));
+        slider(content,"Пульсация сферы","sphere_pulse",0,250,settings.parameter("sphere_pulse",100,0,250));
+        slider(content,"Рукава галактики","galaxy_arms",1,8,settings.parameter("galaxy_arms",3,1,8));
+        slider(content,"Длина хвостов","rain_length",25,250,settings.parameter("rain_length",100,25,250));
+        slider(content,"Шаг струй дождя","rain_spacing",1,6,settings.parameter("rain_spacing",2,1,6));
+        slider(content,"Скорость кругов","ripple_speed",25,250,settings.parameter("ripple_speed",100,25,250));
+        slider(content,"Жизнь волны, сек.","ripple_life",1,10,settings.parameter("ripple_life",4,1,10));
+        toggle(content,"Волны от касаний поверх других режимов","touch",true);
+        content.addView(text("В режиме «Касание» волны включены всегда.\nНа рабочем столе доставку касаний определяет лаунчер.",11,MUTED),margins(-1,-2,0,4,0,12));
+        mediaOptions=column();
+        mediaLabel=text("",12,MUTED); mediaOptions.addView(mediaLabel);
+        Button choose=button("[ Выбрать файл ]"); choose.setOnClickListener(v -> chooseMedia());
+        mediaOptions.addView(choose,margins(-1,dp(52),0,10,0,10));
+        slider(mediaOptions,"Контраст медиа","media_contrast",25,250,settings.parameter("media_contrast",100,25,250));
+        toggle(mediaOptions,"Инверсия света и тени","media_invert",false);
+        mediaOptions.addView(text("Фото — неподвижное. Видео — по кругу без звука,\nдо 10 ASCII-кадров/с. Кадр заполняет экран с обрезкой по центру.",11,MUTED));
+        content.addView(mediaOptions,margins(-1,-2,0,8,0,18));
 
         section(content, "02", "ШРИФТ СИМВОЛОВ");
         for (int i = 0; i < fontButtons.length; i++) {
@@ -143,6 +174,9 @@ public final class MainActivity extends Activity {
             content.addView(card, margins(-1, -2, 0, 0, 0, 10));
         }
         content.addView(text("Terminal — пиксельный стиль старого cmd.\nClassic — гладкий консольный шрифт Cousine.", 11, MUTED), margins(-1, -2, 0, 0, 0, 14));
+        symbolsLabel=text("",12,MUTED); content.addView(symbolsLabel);
+        Button symbolsButton=button("[ Свои ASCII-символы ]"); symbolsButton.setOnClickListener(v -> editSymbols());
+        content.addView(symbolsButton,margins(-1,dp(52),0,8,0,14));
         section(content, "03", "ПЛОТНОСТЬ И РАЗМЕР");
         content.addView(text("Больше столбцов → мельче и плотнее сетка.\nРазмер знака меняет заполнение ячейки.\nНажмите значение для точного ввода.", 11, MUTED), margins(-1, -2, 0, 0, 0, 12));
         LinearLayout presets = new LinearLayout(this);
@@ -196,6 +230,12 @@ public final class MainActivity extends Activity {
         content.addView(eco, margins(-1, -2, 0, 8, 0, 14)); eco.setMinimumHeight(dp(58));
         TextView note = text("Чёрный фон • Без рекламы • Работает офлайн\nАнимация останавливается, когда обои не видны.", 11, MUTED);
         note.setLineSpacing(dp(4), 1); content.addView(note);
+        section(content,"05","МОИ ПРЕСЕТЫ");
+        action(content,"Сохранить текущие настройки",this::savePreset);
+        action(content,"Открыть / удалить пресет",this::showPresets);
+        action(content,"Экспорт пресетов в файл",() -> document(Intent.ACTION_CREATE_DOCUMENT,"application/json",202));
+        action(content,"Импорт пресетов из файла",() -> document(Intent.ACTION_OPEN_DOCUMENT,"*/*",203));
+        content.addView(text("Файл переносит настройки и символы.\nФото и видео выберите заново на другом устройстве.",11,MUTED));
 
         LinearLayout dock = column(); dock.setPadding(dp(22), dp(12), dp(22), dp(12));
         dock.setBackgroundColor(BG);
@@ -220,7 +260,15 @@ public final class MainActivity extends Activity {
         }
         caption.setText(SUBTITLES[selected]);
         cubeOptions.setVisibility(selected == 0 ? View.VISIBLE : View.GONE);
-        controls.get("object_scale").setVisibility(selected == 1 || selected == 5 ? View.GONE : View.VISIBLE);
+        showControl("object_scale",selected==0||selected==2||selected==3||selected==4);
+        showControl("rotation_x",selected==0||selected==2||selected==3); showControl("rotation_y",selected==0||selected==2||selected==3);
+        showControl("wave_frequency",selected==1); showControl("wave_strength",selected==1);
+        showControl("torus_thickness",selected==2); showControl("sphere_pulse",selected==3);
+        showControl("galaxy_arms",selected==4); showControl("rain_length",selected==5); showControl("rain_spacing",selected==5);
+        showControl("ripple_speed",selected==6||settings.touchEnabled()); showControl("ripple_life",selected==6||settings.touchEnabled());
+        mediaOptions.setVisibility(selected>=7?View.VISIBLE:View.GONE);
+        mediaLabel.setText(settings.mediaUri().isEmpty()?"Файл ещё не выбран":"Файл выбран. Можно заменить его ниже.");
+        symbolsLabel.setText(settings.symbols().isEmpty()?"Символы: стандартные для эффекта":"Символы: "+settings.symbols());
         for (int i = 0; i < cubeButtons.length; i++) selection(cubeButtons[i], i == (settings.wireframe() ? 1 : 0));
         for (int i = 0; i < fontButtons.length; i++) {
             selection(fontButtons[i], i == settings.font());
@@ -231,6 +279,99 @@ public final class MainActivity extends Activity {
         updateGridReadout();
     }
 
+    private void showControl(String key,boolean visible) { controls.get(key).setVisibility(visible?View.VISIBLE:View.GONE); }
+    private void toggle(LinearLayout parent,String label,String key,boolean fallback) {
+        Switch view=new Switch(this); view.setText(label); view.setTextColor(TEXT); view.setTextSize(12);
+        view.setTypeface(Typeface.MONOSPACE); view.setMinimumHeight(dp(56)); view.setChecked(settings.prefs.getBoolean(key,fallback));
+        view.setOnCheckedChangeListener((v,checked) -> { settings.prefs.edit().putBoolean(key,checked).apply(); refresh(); });
+        parent.addView(view,margins(-1,-2,0,6,0,10));
+    }
+    private void action(LinearLayout parent,String label,Runnable task) {
+        Button button=button(label); button.setOnClickListener(v -> task.run());
+        parent.addView(button,margins(-1,dp(52),0,0,0,10));
+    }
+    private void message(String value) { Toast.makeText(this,value,Toast.LENGTH_LONG).show(); }
+    private void editSymbols() {
+        EditText input=new EditText(this); input.setText(settings.symbols()); input.setTextColor(TEXT); input.setTypeface(Typeface.MONOSPACE);
+        input.setSingleLine(true); input.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(94)});
+        LinearLayout box=column(); box.setPadding(dp(24),dp(8),dp(24),dp(8));
+        box.addView(text("Латиница, цифры, ASCII-знаки — до 94.\nПорядок: от лёгких к плотным.\nПустое поле возвращает стандартный набор.",12,MUTED));
+        box.addView(input);
+        LinearLayout examples=new LinearLayout(this);
+        for(String sample:new String[]{"01"," .:-=+*#%@","<>/\\{}[]"}) { Button b=button(sample); b.setTextSize(11); b.setOnClickListener(v -> input.setText(sample)); examples.addView(b,new LinearLayout.LayoutParams(0,dp(48),1)); }
+        box.addView(examples);
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Свои символы").setView(box).setNegativeButton("Отмена",null).setPositiveButton("Применить",null).create();
+        dialog.setOnShowListener(v -> dialog.getButton(-1).setOnClickListener(b -> {
+            try { String value=PresetStore.cleanSymbols(input.getText().toString()); settings.prefs.edit().putString("symbols",value).apply(); refresh(); dialog.dismiss(); }
+            catch(IllegalArgumentException e) { input.setError(e.getMessage()); }
+        })); dialog.show();
+    }
+    private void savePreset() {
+        EditText input=new EditText(this); input.setSingleLine(true); input.setHint("Название пресета"); input.setTextColor(TEXT);
+        input.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(50)});
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Сохранить пресет").setView(input).setNegativeButton("Отмена",null).setPositiveButton("Сохранить",null).create();
+        dialog.setOnShowListener(v -> dialog.getButton(-1).setOnClickListener(b -> {
+            String name=input.getText().toString().trim();
+            if(java.util.Arrays.asList(presetStore.names()).contains(name)) {
+                new AlertDialog.Builder(this).setMessage("Заменить пресет «"+name+"»?").setNegativeButton("Отмена",null)
+                    .setPositiveButton("Заменить",(d,w) -> { try { presetStore.save(name); dialog.dismiss(); message("Пресет обновлён"); } catch(Exception e){input.setError(e.getMessage());} }).show();
+            } else try { presetStore.save(name); dialog.dismiss(); message("Пресет сохранён"); } catch(Exception e){input.setError(e.getMessage());}
+        })); dialog.show();
+    }
+    private void showPresets() {
+        String[] names=presetStore.names(); if(names.length==0){message("Пока нет сохранённых пресетов");return;}
+        new AlertDialog.Builder(this).setTitle("Мои пресеты").setItems(names,(d,i) -> {
+            new AlertDialog.Builder(this).setTitle(names[i]).setItems(new String[]{"Применить","Удалить"},(a,which) -> {
+                if(which==0) { try { presetStore.apply(names[i]); recreate(); }catch(Exception e){message("Не удалось применить пресет");} }
+                else new AlertDialog.Builder(this).setMessage("Удалить «"+names[i]+"»?").setNegativeButton("Отмена",null).setPositiveButton("Удалить",(v,w)->presetStore.remove(names[i])).show();
+            }).show();
+        }).show();
+    }
+    private void chooseMedia() { document(Intent.ACTION_OPEN_DOCUMENT,settings.mode()==8?"video/*":"image/*",settings.mode()==8?201:200); }
+    private void document(String action,String type,int request) {
+        Intent intent=new Intent(action).setType(type).addCategory(Intent.CATEGORY_OPENABLE);
+        if(request==202)intent.putExtra(Intent.EXTRA_TITLE,"ascii-flow-presets.json");
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        if(request==200||request==201)intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        try { startActivityForResult(intent,request); }catch(ActivityNotFoundException e){message("На устройстве нет приложения для выбора файлов");}
+    }
+    @Override protected void onActivityResult(int request,int result,Intent data) {
+        super.onActivityResult(request,result,data);
+        if(result!=RESULT_OK||data==null||data.getData()==null)return;
+        Uri uri=data.getData();
+        if(request==200||request==201) {
+            try {
+                getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                settings.prefs.edit().putString(request==201?"video_uri":"photo_uri",uri.toString()).putInt("mode",request==201?8:7)
+                    .putInt("media_revision",settings.prefs.getInt("media_revision",0)+1).apply();
+                refresh(); message("Файл выбран");
+            } catch(Exception e){message("Не удалось сохранить доступ к файлу. Выберите файл из памяти устройства.");}
+            return;
+        }
+        if(request!=202&&request!=203)return;
+        final String export;
+        try { export=request==202?presetStore.exportAll():""; }catch(Exception e){message("Не удалось подготовить пресеты");return;}
+        new Thread(() -> {
+            String status;
+            try {
+                if(request==202) {
+                    try(OutputStream out=getContentResolver().openOutputStream(uri,"wt")) {
+                        if(out==null)throw new IOException(); out.write(export.getBytes(StandardCharsets.UTF_8));
+                    }
+                    status="Пресеты экспортированы";
+                } else {
+                    ByteArrayOutputStream bytes=new ByteArrayOutputStream();
+                    try(InputStream in=getContentResolver().openInputStream(uri)) {
+                        if(in==null)throw new IOException(); byte[] buffer=new byte[4096]; int n;
+                        while((n=in.read(buffer))!=-1) { if(bytes.size()+n>65536)throw new IllegalArgumentException("Файл пресетов слишком большой (максимум 64 КБ)"); bytes.write(buffer,0,n); }
+                    }
+                    int count=presetStore.importAll(new String(bytes.toByteArray(),StandardCharsets.UTF_8)); status="Импортировано пресетов: "+count;
+                }
+            } catch(Exception e) { status=e instanceof IllegalArgumentException?e.getMessage():"Не удалось прочитать или записать файл пресетов"; }
+            final String done=status; runOnUiThread(() -> { if(!isDestroyed())message(done); });
+        },"ascii-preset-io").start();
+    }
+
     private void slider(LinearLayout parent, String name, String key, int min, int max, int current) {
         Control control = new Control(name, key, min, max, current);
         controls.put(key, control);
@@ -238,7 +379,7 @@ public final class MainActivity extends Activity {
     }
     private String value(String key, int n) {
         if (key.equals("speed")) return n == 0 ? "ПАУЗА" : String.format(java.util.Locale.ROOT, "%.2f×", n / 30f);
-        return key.equals("columns") ? n + "" : n + "%";
+        return key.equals("columns")||key.equals("galaxy_arms")||key.equals("rain_spacing")||key.equals("ripple_life") ? n + "" : n + "%";
     }
     private void selection(Button button, boolean selected) {
         button.setSelected(selected);
@@ -415,12 +556,21 @@ public final class MainActivity extends Activity {
         Preview() { super(MainActivity.this); setContentDescription("Анимированный предпросмотр ASCII-обоев"); }
         void start() { running = true; painter.pause(); invalidate(); }
         void stop() { running = false; removeCallbacks(tick); painter.pause(); }
+        @Override public boolean onTouchEvent(MotionEvent event) {
+            if(event.getActionMasked()==MotionEvent.ACTION_DOWN || event.getActionMasked()==MotionEvent.ACTION_POINTER_DOWN) {
+                int i=event.getActionIndex(); painter.touch(event.getX(i),event.getY(i),getWidth(),getHeight(),settings); invalidate();
+                getParent().requestDisallowInterceptTouchEvent(true); return true;
+            }
+            if(event.getActionMasked()==MotionEvent.ACTION_UP)performClick();
+            return true;
+        }
+        @Override public boolean performClick() { super.performClick(); return true; }
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
             painter.draw(canvas, getWidth(), getHeight(), getResources().getDisplayMetrics().density, settings, true);
             removeCallbacks(tick);
             if (running) postDelayed(tick, 1000 / settings.fps());
         }
-        @Override protected void onDetachedFromWindow() { stop(); super.onDetachedFromWindow(); }
+        @Override protected void onDetachedFromWindow() { stop(); painter.close(); super.onDetachedFromWindow(); }
     }
 }

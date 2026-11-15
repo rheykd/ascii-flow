@@ -4,7 +4,18 @@ import java.util.Arrays;
 
 /** Platform independent, allocation-free frame rendering after resize. */
 public final class AsciiScene {
-    public static final String[] NAMES = {"Куб", "Волны", "Тор", "Сфера", "Галактика", "Дождь"};
+    public static final String[] NAMES = {"Куб", "Волны", "Тор", "Сфера", "Галактика", "Дождь", "Касание", "Фото", "Видео"};
+    public final EffectOptions options = new EffectOptions();
+    private String custom = "";
+    private char[] ramp = RAMP;
+    public void symbols(String value) {
+        if (custom.equals(value)) return;
+        custom = value; ramp = value.isEmpty() ? RAMP : value.toCharArray();
+    }
+    public void pixel(int i, float intensity) {
+        light[i] = Math.max(0, Math.min(1, intensity));
+        glyphs[i] = light[i] < .035f ? ' ' : ramp[(int)(light[i] * (ramp.length - 1))];
+    }
     private static final char[] RAMP = ".,:;irsXA253hMHGS#9B&@".toCharArray();
     private static final char[] RAIN = "0123456789<>/{}[]+*:=ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
     public int cols, rows;
@@ -29,7 +40,7 @@ public final class AsciiScene {
         Arrays.fill(glyphs, ' '); Arrays.fill(light, 0); Arrays.fill(depth, -Float.MAX_VALUE);
         aspect = cellAspect;
         scale = Math.min(cols, rows / aspect) * .32 * objectScale;
-        double a = t * .16 + .42, b = t * .11 + .62;
+        double a = t * .16 * options.rotationX / 100.0 + .42, b = t * .11 * options.rotationY / 100.0 + .62;
         ca = Math.cos(a); sa = Math.sin(a); cb = Math.cos(b); sb = Math.sin(b);
         switch (mode) {
             case 1: waves(t); break;
@@ -37,6 +48,7 @@ public final class AsciiScene {
             case 3: sphere(t); break;
             case 4: galaxy(t); break;
             case 5: rain(t); break;
+            case 6: case 7: case 8: break;
             default: if (wireframe) wireCube(); else cube();
         }
     }
@@ -78,7 +90,7 @@ public final class AsciiScene {
         depth[i] = (float) z;
         brightness = Math.max(.12, Math.min(1, brightness));
         light[i] = (float) brightness;
-        glyphs[i] = glyph == 0 ? RAMP[(int)(brightness * (RAMP.length - 1))] : glyph;
+        glyphs[i] = glyph == 0 || !custom.isEmpty() ? ramp[(int)(brightness * (ramp.length - 1))] : glyph;
     }
 
     private void project(double x, double y, double z, double nx, double ny, double nz, boolean edge) {
@@ -110,15 +122,16 @@ public final class AsciiScene {
     private void torus(double t) {
         for (double u = 0; u < Math.PI * 2; u += .045) for (double v = 0; v < Math.PI * 2; v += .085) {
             double cu = Math.cos(u), su = Math.sin(u), cv = Math.cos(v), sv = Math.sin(v);
-            double r = .78 + .31 * cv;
-            project(r * cu, r * su, .31 * sv, cv * cu, cv * su, sv, false);
+            double tube = .31 * options.torusThickness / 100.0;
+            double r = .78 + tube * cv;
+            project(r * cu, r * su, tube * sv, cv * cu, cv * su, sv, false);
         }
     }
 
     private void sphere(double t) {
         for (double u = 0; u < Math.PI; u += .045) for (double v = 0; v < 2 * Math.PI; v += .055) {
             double x = Math.sin(u) * Math.cos(v), y = Math.cos(u), z = Math.sin(u) * Math.sin(v);
-            double r = .94 + .055 * Math.sin(6 * u + 3 * v + t * .6);
+            double r = .94 + .055 * options.spherePulse / 100.0 * Math.sin(6 * u + 3 * v + t * .6);
             boolean line = Math.abs(Math.sin(u * 9)) < .16 || Math.abs(Math.sin(v * 7)) < .12;
             project(x * r, y * r, z * r, x, y, z, line);
         }
@@ -128,10 +141,11 @@ public final class AsciiScene {
         for (int y = 0; y < rows; y++) for (int x = 0; x < cols; x++) {
             double xx = (x - cols * .5) / cols * 9;
             double yy = (y - rows * .5) / cols / aspect * 9;
+            xx *= options.waveFrequency / 100.0; yy *= options.waveFrequency / 100.0;
             double d = Math.hypot(xx, yy);
             double wave = Math.sin(xx * 1.6 + t * .6 + Math.sin(yy * .8 - t * .3))
                 + Math.sin(yy * 1.5 - t * .5) + .5 * Math.cos(d * 2.3 - t * .7);
-            double value = (wave + 2.5) / 5;
+            double value = Math.max(0, Math.min(1, (wave * options.waveStrength / 100.0 + 2.5) / 5));
             if (value > .22) put(x, y, 0, value * .85, (char)0);
         }
     }
@@ -140,7 +154,7 @@ public final class AsciiScene {
         for (int i = 0; i < 2200; i++) {
             double r = Math.sqrt((i + .5) / 2200.0) * 1.25;
             double theta = i * 2.3999632297 + r * 5 + t * .08;
-            double arm = Math.pow(.5 + .5 * Math.sin(theta * 3 - r * 7 + t * .13), 5);
+            double arm = Math.pow(.5 + .5 * Math.sin(theta * options.galaxyArms - r * 7 + t * .13), 5);
             if (arm < .12) continue;
             double x = Math.cos(theta) * r, y = Math.sin(theta) * r * .72;
             put((int)(cols * .5 + x * scale), (int)(rows * .5 + y * scale * aspect), arm,
@@ -150,11 +164,11 @@ public final class AsciiScene {
     }
 
     private void rain(double t) {
-        for (int x = 0; x < cols; x += 2) {
+        for (int x = 0; x < cols; x += Math.max(1, options.rainSpacing)) {
             int seed = (x * 1103515245 + 12345) & 0x7fffffff;
             double speed = 2.5 + seed % 500 / 90.0;
             double head = (t * speed + seed % 197) % (rows + 25);
-            int tail = 8 + seed % 17;
+            int tail = Math.max(2, (8 + seed % 17) * options.rainLength / 100);
             for (int k = 0; k < tail; k++) {
                 int y = (int)head - k;
                 int code = Math.floorMod(seed + y * 31 + (int)(t * 2), RAIN.length);

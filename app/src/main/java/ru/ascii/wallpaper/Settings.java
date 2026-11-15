@@ -13,7 +13,18 @@ final class Settings {
         prefs = context.getSharedPreferences("ascii_flow", Context.MODE_PRIVATE);
         device = new DeviceProfile(context);
     }
-    int mode() { return Math.max(0, Math.min(5, prefs.getInt("mode", 0))); }
+    int mode() { return bounded("mode", 0, 0, 8); }
+    int parameter(String key, int fallback, int min, int max) { return bounded(key, fallback, min, max); }
+    String symbols() { return prefs.getString("symbols", ""); }
+    boolean touchEnabled() { return prefs.getBoolean("touch", true); }
+    String mediaUri() { return prefs.getString(mode() == 8 ? "video_uri" : "photo_uri", ""); }
+    void effects(EffectOptions o) {
+        o.rotationX = bounded("rotation_x",100,0,200); o.rotationY = bounded("rotation_y",100,0,200);
+        o.waveFrequency = bounded("wave_frequency",100,25,250); o.waveStrength = bounded("wave_strength",100,10,200);
+        o.torusThickness = bounded("torus_thickness",100,30,160); o.spherePulse = bounded("sphere_pulse",100,0,250);
+        o.galaxyArms = bounded("galaxy_arms",3,1,8); o.rainLength = bounded("rain_length",100,25,250);
+        o.rainSpacing = bounded("rain_spacing",2,1,6);
+    }
     int colorIndex() { return bounded("color", 5, 0, COLORS.length - 1); }
     int color() { return COLORS[colorIndex()]; }
     int columns() { return bounded("columns", device.columns(), 24, 180); }

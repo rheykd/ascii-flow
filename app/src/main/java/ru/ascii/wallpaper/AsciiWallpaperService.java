@@ -17,11 +17,12 @@ public final class AsciiWallpaperService extends WallpaperService {
         private final Settings settings = new Settings(AsciiWallpaperService.this);
         private final AsciiPainter painter = new AsciiPainter(AsciiWallpaperService.this);
         private boolean visible, ready, destroyed;
+        private long lastTouch;
         private final Runnable frame = this::drawFrame;
 
         @Override public void onCreate(SurfaceHolder holder) {
             super.onCreate(holder);
-            setTouchEventsEnabled(false);
+            setTouchEventsEnabled(true);
             setOffsetNotificationsEnabled(false);
         }
         @Override public void onVisibilityChanged(boolean value) {
@@ -42,7 +43,23 @@ public final class AsciiWallpaperService extends WallpaperService {
             super.onSurfaceDestroyed(holder);
         }
         @Override public void onDestroy() {
-            destroyed = true; handler.removeCallbacks(frame); super.onDestroy();
+            destroyed = true; handler.removeCallbacks(frame); painter.close(); super.onDestroy();
+        }
+        @Override public void onTouchEvent(android.view.MotionEvent event) {
+            if(event.getActionMasked()==android.view.MotionEvent.ACTION_DOWN || event.getActionMasked()==android.view.MotionEvent.ACTION_POINTER_DOWN) {
+                int i=event.getActionIndex(); android.graphics.Rect bounds=getSurfaceHolder().getSurfaceFrame();
+                lastTouch=android.os.SystemClock.uptimeMillis();
+                painter.touch(event.getX(i),event.getY(i),bounds.width(),bounds.height(),settings);
+                if(visible && ready) drawFrame();
+            }
+        }
+        @Override public android.os.Bundle onCommand(String action,int x,int y,int z,android.os.Bundle extras,boolean resultRequested) {
+            if(android.app.WallpaperManager.COMMAND_TAP.equals(action) && android.os.SystemClock.uptimeMillis()-lastTouch>350) {
+                android.graphics.Rect bounds=getSurfaceHolder().getSurfaceFrame();
+                painter.touch(x,y,bounds.width(),bounds.height(),settings);
+                if(visible&&ready)drawFrame();
+            }
+            return super.onCommand(action,x,y,z,extras,resultRequested);
         }
         @Override public WallpaperColors onComputeColors() {
             if (android.os.Build.VERSION.SDK_INT < 27) return null;
