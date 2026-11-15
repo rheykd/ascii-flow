@@ -16,6 +16,14 @@ public final class AsciiWallpaperService extends WallpaperService {
         private final Handler handler = new Handler(Looper.getMainLooper());
         private final Settings settings = new Settings(AsciiWallpaperService.this);
         private final AsciiPainter painter = new AsciiPainter(AsciiWallpaperService.this);
+        private final LockClockRenderer clock = new LockClockRenderer(AsciiWallpaperService.this);
+        private boolean showingClock;
+        private boolean wantsClock() {
+            android.app.KeyguardManager keyguard=(android.app.KeyguardManager)getSystemService(KEYGUARD_SERVICE);
+            int flags=android.os.Build.VERSION.SDK_INT>=34?getWallpaperFlags():0;
+            return LockClockPolicy.show(settings.lockClock(),isPreview(),android.os.Build.VERSION.SDK_INT,flags,keyguard!=null&&keyguard.isKeyguardLocked());
+        }
+        @Override public void onWallpaperFlagsChanged(int which) { if(visible&&ready)drawFrame(); }
         private boolean visible, ready, destroyed;
         private long lastTouch;
         private final Runnable frame = this::drawFrame;
@@ -43,9 +51,10 @@ public final class AsciiWallpaperService extends WallpaperService {
             super.onSurfaceDestroyed(holder);
         }
         @Override public void onDestroy() {
-            destroyed = true; handler.removeCallbacks(frame); painter.close(); super.onDestroy();
+            destroyed = true; handler.removeCallbacks(frame); painter.close(); clock.close(); super.onDestroy();
         }
         @Override public void onTouchEvent(android.view.MotionEvent event) {
+            if(wantsClock())return;
             if(event.getActionMasked()==android.view.MotionEvent.ACTION_DOWN || event.getActionMasked()==android.view.MotionEvent.ACTION_POINTER_DOWN) {
                 int i=event.getActionIndex(); android.graphics.Rect bounds=getSurfaceHolder().getSurfaceFrame();
                 lastTouch=android.os.SystemClock.uptimeMillis();
@@ -54,6 +63,7 @@ public final class AsciiWallpaperService extends WallpaperService {
             }
         }
         @Override public android.os.Bundle onCommand(String action,int x,int y,int z,android.os.Bundle extras,boolean resultRequested) {
+            if(wantsClock())return null;
             if(android.app.WallpaperManager.COMMAND_TAP.equals(action) && android.os.SystemClock.uptimeMillis()-lastTouch>350) {
                 android.graphics.Rect bounds=getSurfaceHolder().getSurfaceFrame();
                 painter.touch(x,y,bounds.width(),bounds.height(),settings);
@@ -72,8 +82,12 @@ public final class AsciiWallpaperService extends WallpaperService {
             Canvas canvas = null;
             try {
                 canvas = holder.lockCanvas();
-                if (canvas != null) painter.draw(canvas, canvas.getWidth(), canvas.getHeight(),
-                        getResources().getDisplayMetrics().density, settings, false);
+                if (canvas != null) {
+                    boolean clockNow=wantsClock();
+                    if(clockNow!=showingClock){painter.pause();showingClock=clockNow;}
+                    if(clockNow)clock.draw(canvas,canvas.getWidth(),canvas.getHeight(),settings);
+                    else painter.draw(canvas, canvas.getWidth(), canvas.getHeight(),getResources().getDisplayMetrics().density, settings, false);
+                }
             } catch (IllegalArgumentException | IllegalStateException ignored) {
                 // A launcher may release the surface between the callback and lockCanvas.
             } finally {
@@ -85,7 +99,7 @@ public final class AsciiWallpaperService extends WallpaperService {
             if (visible && ready && !destroyed) {
                 PowerManager power = (PowerManager)getSystemService(POWER_SERVICE);
                 int fps = power != null && power.isPowerSaveMode() ? 15 : settings.fps();
-                handler.postDelayed(frame, 1000 / fps);
+                handler.postDelayed(frame, showingClock?250:1000 / fps);
             }
         }
     }

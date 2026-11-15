@@ -4,7 +4,7 @@ import java.util.Arrays;
 
 /** Platform independent, allocation-free frame rendering after resize. */
 public final class AsciiScene {
-    public static final String[] NAMES = {"Куб", "Волны", "Тор", "Сфера", "Галактика", "Дождь", "Касание", "Фото", "Видео"};
+    public static final String[] NAMES = {"Куб", "Волны", "Тор", "Сфера", "Галактика", "Дождь", "Касание", "Фото", "Видео", "Чёрная дыра", "Пульсар", "Звёзды"};
     public final EffectOptions options = new EffectOptions();
     private String custom = "";
     private char[] ramp = RAMP;
@@ -49,6 +49,9 @@ public final class AsciiScene {
             case 4: galaxy(t); break;
             case 5: rain(t); break;
             case 6: case 7: case 8: break;
+            case 9: blackHole(t); break;
+            case 10: pulsar(t); break;
+            case 11: stars(t); break;
             default: if (wireframe) wireCube(); else cube();
         }
     }
@@ -151,16 +154,105 @@ public final class AsciiScene {
     }
 
     private void galaxy(double t) {
+        // Выключенное вращение замораживает и поворот, и бег рукавов.
+        double spin = options.galaxySpin ? t * options.galaxyRotation / 100.0 : 0;
+        double rotation = spin * .08;
         for (int i = 0; i < 2200; i++) {
             double r = Math.sqrt((i + .5) / 2200.0) * 1.25;
-            double theta = i * 2.3999632297 + r * 5 + t * .08;
-            double arm = Math.pow(.5 + .5 * Math.sin(theta * options.galaxyArms - r * 7 + t * .13), 5);
+            double theta = i * 2.3999632297 + r * 5 + rotation;
+            double arm = Math.pow(.5 + .5 * Math.sin(theta * options.galaxyArms - r * 7 + spin * .13), 5);
             if (arm < .12) continue;
             double x = Math.cos(theta) * r, y = Math.sin(theta) * r * .72;
             put((int)(cols * .5 + x * scale), (int)(rows * .5 + y * scale * aspect), arm,
                 (.28 + .7 * arm) * (1 - r * .25), (char)0);
         }
         put(cols / 2, rows / 2, 2, 1, '@');
+    }
+
+    private void blackHole(double t) {
+        int cx = cols / 2, cy = rows / 2;
+        // Аккреционный диск — наклонные орбиты вокруг дыры
+        for (int i = 0; i < 2000; i++) {
+            double r = .15 + Math.sqrt((i + .5) / 2000.0) * 1.1;
+            double theta = i * 2.3999632297 + t * .18 * (1.0 / (r + .1));
+            // Наклон диска
+            double x3d = Math.cos(theta) * r;
+            double y3d = Math.sin(theta) * r * .35;
+            double z3d = Math.sin(theta) * r * .6;
+            // Эффект линзирования вблизи центра
+            double dist = Math.hypot(x3d, y3d);
+            double lensing = dist > .18 ? 1.0 : (1.0 + (.18 - dist) * 3.0);
+            double sx = x3d * lensing, sy = (y3d + z3d * .28) * lensing;
+            double brightness = (.35 + .55 * Math.pow(1.0 - Math.min(1, r), 1.5)) * (r > .18 ? 1.0 : 0.0);
+            if (brightness > .08)
+                put((int)(cx + sx * scale), (int)(cy + sy * scale * aspect), r, brightness, (char)0);
+        }
+        // Фотонное кольцо
+        for (double a = 0; a < Math.PI * 2; a += .08) {
+            double rx = Math.cos(a) * .14, ry = Math.sin(a) * .05;
+            put((int)(cx + rx * scale), (int)(cy + ry * scale * aspect), 1.5, .9, '+');
+        }
+        // Ядро — чёрная дыра
+        put(cx, cy, 2, 1, '@');
+    }
+
+    private void pulsar(double t) {
+        int cx = cols / 2, cy = rows / 2;
+        // Два вращающихся луча-маяка
+        for (int beam = 0; beam < 2; beam++) {
+            double beamAngle = t * 1.4 + beam * Math.PI;
+            int beamLen = (int)(Math.min(cols, rows / aspect) * .45);
+            for (int r = 2; r < beamLen; r++) {
+                // Ширина луча: в центре широкий, к краям тонкий
+                double spreadR = 1.0 + r * .04;
+                for (double off = -spreadR; off <= spreadR; off += .5) {
+                    double ang = beamAngle + off * .06 / Math.max(1, r * .1);
+                    double bx = Math.cos(ang) * r;
+                    double by = Math.sin(ang) * r * .6;
+                    double brightness = (.9 - r * .012) * (1.0 - Math.abs(off) / (spreadR + 1));
+                    if (brightness > .08)
+                        put((int)(cx + bx), (int)(cy + by * aspect), 0, brightness, (char)0);
+                }
+            }
+        }
+        // Концентрические кольца — периодические выбросы
+        for (int ring = 0; ring < 4; ring++) {
+            double ringR = ((t * .6 + ring * .9) % 2.5) * Math.min(cols, rows / aspect) * .22;
+            if (ringR < 1.5) continue;
+            for (double a = 0; a < Math.PI * 2; a += .07) {
+                double bx = Math.cos(a) * ringR, by = Math.sin(a) * ringR * .6;
+                double brightness = .55 * (1.0 - ringR / (Math.min(cols, rows / aspect) * .55));
+                if (brightness > .1)
+                    put((int)(cx + bx), (int)(cy + by * aspect), 0, brightness, (char)0);
+            }
+        }
+        // Пульсирующее ядро
+        double corePulse = .7 + .3 * Math.sin(t * Math.PI * 1.4);
+        put(cx, cy, 2, corePulse, '*');
+        put(cx - 1, cy, 1.9, corePulse * .7, (char)0);
+        put(cx + 1, cy, 1.9, corePulse * .7, (char)0);
+        put(cx, cy - 1, 1.9, corePulse * .6, (char)0);
+        put(cx, cy + 1, 1.9, corePulse * .6, (char)0);
+    }
+
+    private void stars(double t) {
+        // Статичные звёзды с опциональной анимацией
+        int seed = 42;
+        int starCount = cols * rows / 12;
+        for (int i = 0; i < starCount; i++) {
+            seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+            int x = seed % cols;
+            seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+            int y = seed % rows;
+            seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+            double baseBrightness = .3 + (seed % 100) / 150.0;
+            double brightness = baseBrightness;
+            if (options.starsAnimation) {
+                double phase = (seed % 100) / 30.0;
+                brightness = baseBrightness * (.7 + .3 * Math.sin(t * .5 + phase));
+            }
+            put(x, y, 0, brightness, (char)0);
+        }
     }
 
     private void rain(double t) {

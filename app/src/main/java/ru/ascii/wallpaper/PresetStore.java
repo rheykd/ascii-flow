@@ -9,11 +9,11 @@ final class PresetStore {
     private final SharedPreferences storage;
     private final Settings settings;
     static final String[] KEYS={"mode","color","columns","glyph_scale","row_spacing","object_scale","font","cube_style","speed","brightness",
-        "rotation_x","rotation_y","wave_frequency","wave_strength","torus_thickness","sphere_pulse","galaxy_arms","rain_length","rain_spacing",
-        "ripple_speed","ripple_life","media_contrast"};
-    static final int[] MIN={0,0,24,40,70,40,0,0,0,5,0,0,25,10,30,0,1,25,1,25,1,25};
-    static final int[] MAX={8,5,180,150,180,140,3,1,180,100,200,200,250,200,160,250,8,250,6,250,10,250};
-    static final String[] BOOL={"eco","touch","media_invert"};
+        "rotation_x","rotation_y","wave_frequency","wave_strength","torus_thickness","sphere_pulse","galaxy_arms","galaxy_rotation",
+        "rain_length","rain_spacing","ripple_speed","ripple_life","media_contrast"};
+    static final int[] MIN={0,0,24,40,70,40,0,0,0,5,0,0,25,10,30,0,1,0,25,1,25,1,25};
+    static final int[] MAX={11,5,180,150,180,140,3,1,180,100,200,200,250,200,160,250,8,200,250,6,250,10,250};
+    static final String[] BOOL={"eco","touch","media_invert","lock_clock","stars_animation","galaxy_spin","blackhole_waves"};
     PresetStore(Context c, Settings s) { settings=s; storage=c.getSharedPreferences("saved_presets",Context.MODE_PRIVATE); }
     static String cleanSymbols(String value) {
         if(value.length()>94)throw new IllegalArgumentException("Не больше 94 ASCII-символов");

@@ -41,7 +41,8 @@ public final class MainActivity extends Activity {
         "Медленное вращение. Чистая геометрия.", "Мягкий рельеф из движущихся символов.",
         "Бесконечное движение замкнутой формы.", "Свет, меридианы и плавное дыхание.",
         "Спиральный танец звёздных символов.", "Знакомый цифровой дождь в новом цвете.",
-        "Коснитесь чёрного фона: появятся ASCII-волны.", "Ваше фото, собранное из символов.", "Видео по кругу. Только символы, без звука."
+        "Коснитесь чёрного фона: появятся ASCII-волны.", "Ваше фото, собранное из символов.", "Видео по кругу. Только символы, без звука.",
+        "Гравитация искривляет орбиты звёзд.", "Пульсирующий источник с волнами лучей.", "Мерцающие огни в тишине космоса."
     };
     private Settings settings;
     private Preview preview;
@@ -56,6 +57,7 @@ public final class MainActivity extends Activity {
     private final Button[] modes = new Button[AsciiScene.NAMES.length], colors = new Button[Settings.COLORS.length];
     private final Button[] fontButtons = new Button[Settings.FONT_NAMES.length], cubeButtons = new Button[2];
     private final LinkedHashMap<String, Control> controls = new LinkedHashMap<>();
+    private final LinkedHashMap<String, Switch> toggles = new LinkedHashMap<>();
 
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -80,7 +82,7 @@ public final class MainActivity extends Activity {
         LinearLayout content = column(); content.setPadding(dp(22), dp(24), dp(22), dp(20));
         scroll.addView(content);
 
-        TextView eyebrow = text("[ СИСТЕМА АКТИВНА ]     v1.3", 10, ACCENT);
+        TextView eyebrow = text("[ СИСТЕМА АКТИВНА ]     v1.5", 10, ACCENT);
         eyebrow.setLetterSpacing(.1f); content.addView(eyebrow);
         TextView title = text("ASCII_FLOW▌", 30, ACCENT);
         title.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
@@ -108,8 +110,12 @@ public final class MainActivity extends Activity {
         Button expand = button("[ Развернуть предпросмотр ]");
         expand.setOnClickListener(v -> openPreview());
         content.addView(expand, margins(-1, dp(48), 0, 0, 0, 12));
+        section(content,"00","ЧАСЫ НА БЛОКИРОВКЕ");
+        toggle(content,"ASCII-часы на экране блокировки","lock_clock",false);
+        content.addView(text("По умолчанию выключены. Только часы и минуты,\nбез даты и погоды. На рабочем столе остаётся выбранный эффект.\nУстановите ASCII Flow также на экран блокировки.\nШтатные часы Samsung скрываются отдельно в настройках Good Lock, если прошивка это позволяет.",11,MUTED),margins(-1,-2,0,0,0,12));
+        action(content,"[ Предпросмотр ASCII-часов ]",() -> openPreview(true));
         section(content, "01", "РЕЖИМ ДВИЖЕНИЯ");
-        String[] marks = {"[+]", "≈", "◎", "◉", "✦", "//", "(~)", "[i]", "[>]"};
+        String[] marks = {"[+]", "≈", "◎", "◉", "✦", "//", "(~)", "[i]", "[>]", "●", "*", "·"};
         for (int row = 0; row < (modes.length+1)/2; row++) {
             LinearLayout pair = new LinearLayout(this);
             for (int col = 0; col < 2; col++) {
@@ -139,11 +145,15 @@ public final class MainActivity extends Activity {
         slider(content, "Масштаб фигуры", "object_scale", 40, 140, settings.objectScale());
         slider(content,"Вращение по X","rotation_x",0,200,settings.parameter("rotation_x",100,0,200));
         slider(content,"Вращение по Y","rotation_y",0,200,settings.parameter("rotation_y",100,0,200));
+        toggle(content,"Вращение галактики","galaxy_spin",true);
+        slider(content,"Скорость вращения галактики","galaxy_rotation",0,200,settings.parameter("galaxy_rotation",100,0,200));
         slider(content,"Частота волн","wave_frequency",25,250,settings.parameter("wave_frequency",100,25,250));
         slider(content,"Сила волн","wave_strength",10,200,settings.parameter("wave_strength",100,10,200));
         slider(content,"Толщина тора","torus_thickness",30,160,settings.parameter("torus_thickness",100,30,160));
         slider(content,"Пульсация сферы","sphere_pulse",0,250,settings.parameter("sphere_pulse",100,0,250));
         slider(content,"Рукава галактики","galaxy_arms",1,8,settings.parameter("galaxy_arms",3,1,8));
+        toggle(content,"Анимация звёзд (пульсация)","stars_animation",false);
+        toggle(content,"Волны от чёрной дыры при касании","blackhole_waves",true);
         slider(content,"Длина хвостов","rain_length",25,250,settings.parameter("rain_length",100,25,250));
         slider(content,"Шаг струй дождя","rain_spacing",1,6,settings.parameter("rain_spacing",2,1,6));
         slider(content,"Скорость кругов","ripple_speed",25,250,settings.parameter("ripple_speed",100,25,250));
@@ -260,12 +270,17 @@ public final class MainActivity extends Activity {
         }
         caption.setText(SUBTITLES[selected]);
         cubeOptions.setVisibility(selected == 0 ? View.VISIBLE : View.GONE);
-        showControl("object_scale",selected==0||selected==2||selected==3||selected==4);
+        showControl("object_scale",selected==0||selected==2||selected==3||selected==4||selected==9);
         showControl("rotation_x",selected==0||selected==2||selected==3); showControl("rotation_y",selected==0||selected==2||selected==3);
+        showControl("galaxy_spin",selected==4);
+        showControl("galaxy_rotation",selected==4&&settings.prefs.getBoolean("galaxy_spin",true));
+        showControl("blackhole_waves",selected==9);
         showControl("wave_frequency",selected==1); showControl("wave_strength",selected==1);
         showControl("torus_thickness",selected==2); showControl("sphere_pulse",selected==3);
-        showControl("galaxy_arms",selected==4); showControl("rain_length",selected==5); showControl("rain_spacing",selected==5);
-        showControl("ripple_speed",selected==6||settings.touchEnabled()); showControl("ripple_life",selected==6||settings.touchEnabled());
+        showControl("galaxy_arms",selected==4);
+        showControl("stars_animation",selected==11);
+        showControl("rain_length",selected==5); showControl("rain_spacing",selected==5);
+        showControl("ripple_speed",settings.ripplesActive()); showControl("ripple_life",settings.ripplesActive());
         mediaOptions.setVisibility(selected>=7?View.VISIBLE:View.GONE);
         mediaLabel.setText(settings.mediaUri().isEmpty()?"Файл ещё не выбран":"Файл выбран. Можно заменить его ниже.");
         symbolsLabel.setText(settings.symbols().isEmpty()?"Символы: стандартные для эффекта":"Символы: "+settings.symbols());
@@ -274,17 +289,21 @@ public final class MainActivity extends Activity {
             selection(fontButtons[i], i == settings.font());
             fontButtons[i].setText((i == settings.font() ? "[x] " : "[ ] ") + Settings.FONT_NAMES[i]);
         }
-        liveLabel.setText("0" + (selected + 1) + " / " + AsciiScene.NAMES[selected].toUpperCase(java.util.Locale.ROOT));
+        liveLabel.setText(String.format(java.util.Locale.ROOT, "%02d / %s", selected + 1, AsciiScene.NAMES[selected].toUpperCase(java.util.Locale.ROOT)));
         preview.invalidate();
         updateGridReadout();
     }
 
-    private void showControl(String key,boolean visible) { controls.get(key).setVisibility(visible?View.VISIBLE:View.GONE); }
+    private void showControl(String key,boolean visible) {
+        View view = controls.containsKey(key) ? controls.get(key) : toggles.get(key);
+        if (view != null) view.setVisibility(visible?View.VISIBLE:View.GONE);
+    }
     private void toggle(LinearLayout parent,String label,String key,boolean fallback) {
         Switch view=new Switch(this); view.setText(label); view.setTextColor(TEXT); view.setTextSize(12);
         view.setTypeface(Typeface.MONOSPACE); view.setMinimumHeight(dp(56)); view.setChecked(settings.prefs.getBoolean(key,fallback));
         view.setOnCheckedChangeListener((v,checked) -> { settings.prefs.edit().putBoolean(key,checked).apply(); refresh(); });
         parent.addView(view,margins(-1,-2,0,6,0,10));
+        toggles.put(key,view);
     }
     private void action(LinearLayout parent,String label,Runnable task) {
         Button button=button(label); button.setOnClickListener(v -> task.run());
@@ -396,11 +415,14 @@ public final class MainActivity extends Activity {
                 grid.cols, grid.rows, grid.cellW * settings.glyphScale() / 100f));
     }
     private void openPreview() {
+        openPreview(false);
+    }
+    private void openPreview(boolean clockPreview) {
         Dialog dialog = new Dialog(this, android.R.style.Theme_Material_NoActionBar_Fullscreen);
         fullDialog = dialog;
         preview.stop();
         FrameLayout root = new FrameLayout(this); root.setBackgroundColor(Color.BLACK);
-        fullPreview = new Preview();
+        fullPreview = new Preview(clockPreview);
         final Preview full = fullPreview;
         root.addView(full, new FrameLayout.LayoutParams(-1, -1));
         Button close = button("[ ЗАКРЫТЬ ]");
@@ -551,12 +573,16 @@ public final class MainActivity extends Activity {
 
     private final class Preview extends View {
         private final AsciiPainter painter = new AsciiPainter(MainActivity.this);
+        private final LockClockRenderer clock=new LockClockRenderer(MainActivity.this);
+        private final boolean clockPreview;
         private boolean running;
         private final Runnable tick = () -> { if (running) invalidate(); };
-        Preview() { super(MainActivity.this); setContentDescription("Анимированный предпросмотр ASCII-обоев"); }
+        Preview() { this(false); }
+        Preview(boolean clockPreview) { super(MainActivity.this);this.clockPreview=clockPreview; setContentDescription(clockPreview?"Предпросмотр ASCII-часов":"Анимированный предпросмотр ASCII-обоев"); }
         void start() { running = true; painter.pause(); invalidate(); }
         void stop() { running = false; removeCallbacks(tick); painter.pause(); }
         @Override public boolean onTouchEvent(MotionEvent event) {
+            if(clockPreview)return super.onTouchEvent(event);
             if(event.getActionMasked()==MotionEvent.ACTION_DOWN || event.getActionMasked()==MotionEvent.ACTION_POINTER_DOWN) {
                 int i=event.getActionIndex(); painter.touch(event.getX(i),event.getY(i),getWidth(),getHeight(),settings); invalidate();
                 getParent().requestDisallowInterceptTouchEvent(true); return true;
@@ -567,10 +593,11 @@ public final class MainActivity extends Activity {
         @Override public boolean performClick() { super.performClick(); return true; }
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
-            painter.draw(canvas, getWidth(), getHeight(), getResources().getDisplayMetrics().density, settings, true);
+            if(clockPreview)clock.draw(canvas,getWidth(),getHeight(),settings);
+            else painter.draw(canvas, getWidth(), getHeight(), getResources().getDisplayMetrics().density, settings, true);
             removeCallbacks(tick);
-            if (running) postDelayed(tick, 1000 / settings.fps());
+            if (running) postDelayed(tick, clockPreview?1000:1000 / settings.fps());
         }
-        @Override protected void onDetachedFromWindow() { stop(); painter.close(); super.onDetachedFromWindow(); }
+        @Override protected void onDetachedFromWindow() { stop(); painter.close(); clock.close(); super.onDetachedFromWindow(); }
     }
 }

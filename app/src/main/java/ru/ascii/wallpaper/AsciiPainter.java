@@ -21,7 +21,9 @@ final class AsciiPainter {
     void close() { media.close(); }
     void touch(float x, float y, int width, int height, Settings settings) {
         if (previousMode != settings.mode()) { ripples.clear(); previousMode = settings.mode(); time=0; media.pause(); }
-        if (settings.mode() == 6 || settings.touchEnabled()) ripples.touch(x/Math.max(1,width), y/Math.max(1,height), realTime);
+        // В режиме чёрной дыры волна всегда расходится от её центра.
+        if (settings.mode() == 9) { if (settings.blackHoleWaves()) ripples.touch(.5, .5, realTime); }
+        else if (settings.mode() == 6 || settings.touchEnabled()) ripples.touch(x/Math.max(1,width), y/Math.max(1,height), realTime);
     }
     void draw(Canvas canvas, int width, int height, float density, Settings settings, boolean preview) {
         long now = android.os.SystemClock.uptimeMillis();
@@ -59,7 +61,7 @@ final class AsciiPainter {
                 }
             }
         }
-        if (settings.mode()==6 || settings.touchEnabled()) ripples.render(scene,realTime,grid.cellW/grid.cellH,
+        if (settings.ripplesActive()) ripples.render(scene,realTime,grid.cellW/grid.cellH,
                 settings.parameter("ripple_speed",100,25,250)/100.0,settings.parameter("ripple_life",4,1,10));
         glyphs.configure(settings.font(), settings.color(), grid.cellW * settings.glyphScale() / 100f);
         float alphaScale = 255 * settings.brightness() / 100f;

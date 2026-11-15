@@ -45,7 +45,7 @@ def main():
         run([JAVA / 'bin/keytool.exe', '-genkeypair', '-keystore', key, '-storepass', 'android',
              '-keypass', 'android', '-alias', 'ascii', '-keyalg', 'RSA', '-keysize', '3072',
              '-validity', '10000', '-dname', 'CN=ASCII Flow Local, O=Personal, C=RU'])
-    output = DIST / 'ASCII-Flow-1.3.apk'
+    output = DIST / 'ASCII-Flow-1.5.apk'
     run([bt / 'apksigner.bat', 'sign', '--ks', key, '--ks-key-alias', 'ascii',
          '--ks-pass', 'pass:android', '--key-pass', 'pass:android', '--out', output, BUILD / 'aligned.apk'])
     run([bt / 'apksigner.bat', 'verify', '--verbose', output])
