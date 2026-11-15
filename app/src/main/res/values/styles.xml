@@ -1,0 +1,11 @@
+<resources>
+    <style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:colorAccent">#39FF78</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowBackground">#020704</item>
+    </style>
+    <string name="wallpaper_description">Живая геометрия из символов. Куб, волны, тор, сфера, галактика и дождь.</string>
+</resources>

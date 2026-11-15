@@ -1,0 +1,10 @@
+.toolchain/
+build/
+dist/*.apk
+dist/*.zip
+*.jks
+*.keystore
+*.idsig
+.env
+.env.*
+local.properties
